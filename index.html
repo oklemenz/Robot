@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Robot</title>
+    <meta charset="UTF-8" />
+    <meta name="description" content="Three.js Template" />
+    <meta
+      name="viewport"
+      content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0.0, viewport-fit=cover"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Three.js" />
+    <link rel="icon" type="image/png" href="img/favicon.png" />
+    <link rel="shortcut icon" type="image/png" href="img/touch-icon-152.png" />
+    <link rel="apple-touch-icon" href="img/touch-icon-152.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="img/touch-icon-152.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="img/touch-icon-180.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <link type="text/css" rel="stylesheet" href="css/style.css" />
+  </head>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./lib/three.module.min.js",
+        "OrbitControls": "./lib/OrbitControls.js",
+        "RoundedBoxGeometry": "./lib/RoundedBoxGeometry.js",
+        "RGBELoader": "./lib/RGBELoader.js",
+        "Tween": "./lib/tween.module.min.js",
+        "lilgui": "./lib/lil-gui.module.js",
+        "sandbox": "./src/sandbox.js",
+        "gui": "./src/gui.js",
+        "robot": "./src/robot.js",
+        "robotModel": "./src/robotModel.js",
+        "controller": "./src/controller.js"
+      }
+    }
+  </script>
+  <body>
+    <script src="./lib/es-module-shims.js"></script>
+    <script src="./node_modules/node-poweredup/dist/browser/poweredup.js"></script>
+    <script type="module" src="src/index.js"></script>
+    <div id="container" class="container"></div>
+    <div id="gui"></div>
+  </body>
+</html>
