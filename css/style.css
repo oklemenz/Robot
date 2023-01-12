@@ -43,6 +43,8 @@ canvas {
     position: absolute;
     top: 0;
     left: 0;
+    overflow: scroll;
+    height: 100%;
 }
 
 .controller.color.disabled {
@@ -55,4 +57,12 @@ canvas {
 
 .controller.color input {
     opacity: 0.5;
+}
+
+.joystick {
+    width: 200px;
+    height: 200px;
+    position: absolute;
+    bottom: 0;
+    right: 0;;
 }

@@ -4,18 +4,23 @@ export default class GUI extends LilGUI {
   constructor(model) {
     super({ container: document.getElementById("gui") });
     this._model = model;
-    this.add(model, "name").listen().disable();
-    this.add(model, "connected").listen().disable();
-    this.add(model, "status", {
+    const info = this.addFolder("Info");
+    info.add(model, "name").listen().disable();
+    info.add(model, "connected").listen().disable();
+    info.add(model, "status", {
       manual: 0,
       started: 1,
       stopped: 2
     }).disable();
+    info.open();
     const actions = this.addFolder("Actions");
     actions.add(model, "connect");
     this.startButton = actions.add(model, "start").disable();
     this.stopButton = actions.add(model, "stop").disable();
     this.shootButton = actions.add(model, "shoot").disable();
+    this.lookCenterButton = actions.add(model, "look center").disable();
+    this.lookLeftButton = actions.add(model, "look left").disable();
+    this.lookRightButton = actions.add(model, "look right").disable();
     this.modeButton = actions
       .add(model, "mode", {
         color: 0x00,
@@ -51,7 +56,7 @@ export default class GUI extends LilGUI {
       .listen()
       .disable();
     const move = actions.addFolder("Move");
-    this.maxPower = move.add(model, "maxPower").disable();
+    this.maxPower = move.add(model, "maxPower", 0, 100).disable();
     this.accelerate = move.add(model, "accelerate").disable();
     this.accelerationTime = move.add(model, "accelerationTime", 0, 2000).disable();
     this.decelerate = move.add(model, "decelerate").disable();

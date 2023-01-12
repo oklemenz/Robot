@@ -32,16 +32,18 @@
         "sandbox": "./src/sandbox.js",
         "gui": "./src/gui.js",
         "robot": "./src/robot.js",
-        "robotModel": "./src/robotModel.js",
-        "controller": "./src/controller.js"
+        "robotViz": "./src/robotViz.js",
+        "control": "./src/control.js"
       }
     }
   </script>
   <body>
     <script src="./lib/es-module-shims.js"></script>
-    <script src="./node_modules/node-poweredup/dist/browser/poweredup.js"></script>
+    <script src="./lib/poweredup.min.js"></script>
+    <script src="./lib/joy.js"></script>
     <script type="module" src="src/index.js"></script>
     <div id="container" class="container"></div>
     <div id="gui"></div>
+    <div id="joystick" class="joystick"></div>
   </body>
 </html>

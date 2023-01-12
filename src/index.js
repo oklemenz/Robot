@@ -5,8 +5,8 @@ import { TWEEN } from "Tween";
 import Sandbox from "sandbox";
 import GUI from "gui";
 import Robot from "robot";
-import RobotModel from "robotModel";
-import Controller from "controller";
+import RobotViz from "robotViz";
+import Control from "control";
 
 init();
 
@@ -41,11 +41,17 @@ export function init() {
   const light = new THREE.AmbientLight(0xfff0dd, 1);
   scene.add(light);
 
+  const robot = new Robot();
   scene.add(new Sandbox());
-  scene.add(new Robot());
-  const robotModel = new RobotModel();
-  new GUI(robotModel);
-  const controller = new Controller(robotModel);
+  scene.add(new RobotViz(robot));
+
+  new GUI(robot);
+  const virtualJoyStick = new JoyStick("joystick", {
+    internalFillColor: "#555555",
+    internalStrokeColor: "#000000",
+    externalStrokeColor: "#000000",
+  });
+  const control = new Control(robot, virtualJoyStick);
 
   render();
 
@@ -58,7 +64,7 @@ export function init() {
   function update() {
     TWEEN.update();
     controls.update();
-    controller.update();
+    control.update();
   }
 
   window.onresize = function () {

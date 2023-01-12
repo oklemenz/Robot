@@ -10,10 +10,11 @@ parserOptions:
 globals:
   window: false
   history: false
-  PoweredUP: false
   document: false
   navigator: false
   requestAnimationFrame: false
+  PoweredUP: false
+  JoyStick: false
 extends:
   - "eslint:recommended"
   - prettier
