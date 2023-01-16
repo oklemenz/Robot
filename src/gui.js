@@ -14,17 +14,18 @@ export default class GUI extends LilGUI {
     info.add(model, "status", {
       manual: 0,
       started: 1,
-      stopped: 2
-    }).disable();
+      scan: 2,
+      stopped: 99
+    }).listen().disable();
     info.open();
     const actions = this.addFolder("Actions");
     actions.add(model, "connect");
     this.startButton = actions.add(model, "start").disable();
     this.stopButton = actions.add(model, "stop").disable();
     this.shootButton = actions.add(model, "shoot").disable();
-    this.lookCenterButton = actions.add(model, "look center").disable();
-    this.lookLeftButton = actions.add(model, "look left").disable();
-    this.lookRightButton = actions.add(model, "look right").disable();
+    this.lookCenterButton = actions.add(model, "lookCenter").name("look center").disable();
+    this.lookLeftButton = actions.add(model, "lookLeft").name("look left").disable();
+    this.lookRightButton = actions.add(model, "lookRight").name("look right").disable();
     this.modeButton = actions
       .add(model, "mode", {
         color: 0x00,
@@ -32,6 +33,14 @@ export default class GUI extends LilGUI {
         led: 0x05,
         "color & distance": 0x08
       })
+      .listen()
+      .disable();
+    this.controlModeButton = actions
+      .add(model, "controlMode", {
+        "single stick": 0,
+        "double stick": 1,
+      })
+      .name("control mode")
       .listen()
       .disable();
     this.topColorButton = actions

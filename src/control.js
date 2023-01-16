@@ -130,30 +130,25 @@ export default class Control {
         this.robot.lookRight();
         break;
       case Gamepad.Plus:
-        this.robot.singleStick = true;
+        this.robot.setControlModeSingle();
         break;
       case Gamepad.Minus:
-        this.robot.singleStick = false;
+        this.robot.setControlModeDouble();
         break;
     }
   }
 
-  async gamepadSingleAxisUpdate(axis, value) {
-    if (!this.robot.singleStick) {
-      switch (axis) {
-        case Gamepad.Axis.LY:
-          await this.robot.manualMoveLeftTrack(value * 100);
-          break;
-        case Gamepad.Axis.RY:
-          await this.robot.manualMoveRightTrack(value * 100);
-          break;
-      }
-    }
-  }
-
-  async gamepadMultipleAxisUpdate(position) {
-    if (this.robot.singleStick) {
+  async gamepadAxisUpdate(axes) {
+    if (this.robot.controlMode === this.robot.const.ControlMode.SINGLE_STICK) {
+      const position = {
+        x: -axes[Gamepad.Axis.LX],
+        y: -axes[Gamepad.Axis.LY]
+      };
       await this.move(position);
+    } else {
+      const leftSpeed = axes[Gamepad.Axis.LY] * 100;
+      const rightSpeed = axes[Gamepad.Axis.RY] * 100;
+      await this.robot.manualMove(leftSpeed, rightSpeed);
     }
   }
 
@@ -174,7 +169,7 @@ export default class Control {
       leftSpeed = leftSpeed / max * 100;
       rightSpeed = rightSpeed / max * 100;
     }
-    await this.robot.manualMoveTracks(leftSpeed, rightSpeed);
+    await this.robot.manualMove(leftSpeed, rightSpeed);
   }
 
   update() {
@@ -191,13 +186,7 @@ export default class Control {
           this._gamePadButtonState[num] = false;
         }
       });
-      gamepad.axes.forEach((axis, num) => {
-        this.gamepadSingleAxisUpdate(num, -axis);
-      });
-      this.gamepadMultipleAxisUpdate({
-        x: -gamepad.axes[Gamepad.Axis.LX],
-        y: -gamepad.axes[Gamepad.Axis.LY]
-      });
+      this.gamepadAxisUpdate(gamepad.axes);
     }
 
     if (this.virtualJoyStick) {

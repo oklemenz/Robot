@@ -65,6 +65,7 @@ export function init() {
     TWEEN.update();
     controls.update();
     control.update();
+    robot.update();
   }
 
   window.onresize = function () {

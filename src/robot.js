@@ -5,13 +5,19 @@ const Mode = {
   COLOR_AND_DISTANCE: 0x08
 };
 
+const ControlMode = {
+  SINGLE_STICK: 0,
+  DOUBLE_STICK: 1,
+}
+
 const Status = {
   MANUAL: 0,
   STARTED: 1,
-  STOPPED: 2
+  SCAN: 2,
+  STOPPED: 99
 };
 
-const Colors = {
+const Color = {
   [PoweredUP.Consts.Color.BLACK]: "#000000",
   [PoweredUP.Consts.Color.PINK]: "#FA91E1",
   [PoweredUP.Consts.Color.PURPLE]: "#D870FF",
@@ -25,12 +31,31 @@ const Colors = {
   [PoweredUP.Consts.Color.WHITE]: "#FFFFFF"
 };
 
-const Constants = {
-  HEAD_LOOK_ANGLE: 20,
-  HEAD_TURN_SPEED: 50,
-  HEAD_TURN_ANGLE: 30,
-  HEAD_SHOOT_ANGLE: 90,
-  TRACK_MAX_POWER: 50
+const TopColor = {
+  OFF: 0,
+  BLUE: 3,
+  GREEN: 5,
+  RED: 9
+}
+
+const BottomColor = {
+  OFF: 0,
+  PINK: 1,
+  PURPLE: 2,
+  BLUE: 3,
+  LIGHT_BLUE: 4,
+  CYAN: 5,
+  GREEN: 6,
+  YELLOW: 7,
+  ORANGE: 8,
+  RED: 9,
+  WHITE: 10
+}
+
+const HeadOrientation = {
+  CENTER: 0,
+  LEFT: 1,
+  RIGHT: 2,
 };
 
 const BodyOrientation = {
@@ -47,16 +72,18 @@ const BodyOrientation = {
   LEAN_RIGHT: 10,
 };
 
-const HeadOrientation = {
-  CENTER: 0,
-  LEFT: 1,
-  RIGHT: 2,
+const Constants = {
+  HEAD_LOOK_ANGLE: 20,
+  HEAD_TURN_SPEED: 50,
+  HEAD_TURN_ANGLE: 30,
+  HEAD_SHOOT_ANGLE: 90,
+  TRACK_MAX_POWER: 50
 };
 
 // TODO:
-//  - Scan (rotate 360, record distances)
+//  - Scan: turn 360, record distances, and visualize on map
 //  - Build up map, record/invalidate blocks, update position on map
-//  - AI: Forwards, Stop, Backwards, Rotate Left, Rotate right, Look Left, Look Right
+//  - AI: Forwards, Stop, Backwards, Turn Left, Turn right, Look Left, Look Right
 
 class EventEmitter {
   constructor() {
@@ -82,6 +109,16 @@ export default class Robot extends EventEmitter {
   constructor() {
     super();
     this._init();
+    this.const = {
+      Mode,
+      ControlMode,
+      Status,
+      Color,
+      TopColor,
+      BottomColor,
+      HeadOrientation,
+      BodyOrientation,
+    }
   }
 
   _init() {
@@ -89,6 +126,7 @@ export default class Robot extends EventEmitter {
     this._conntected = false;
     this._status = Status.MANUAL;
     this._mode = Mode.DISTANCE;
+    this._controlMode = ControlMode.SINGLE_STICK;
     this._topColor = PoweredUP.Consts.Color.BLACK;
     this._bottomColor = PoweredUP.Consts.Color.BLUE;
     this._maxPower = Constants.TRACK_MAX_POWER;
@@ -96,7 +134,6 @@ export default class Robot extends EventEmitter {
     this._accelerationTime = 0;
     this._decelerate = true;
     this._decelerationTime = 0;
-    this._singleStick = true;
     this._battery = 0;
     this._tilt = this._tilt || {};
     this._tilt.x = 0;
@@ -154,6 +191,7 @@ export default class Robot extends EventEmitter {
     this.gui.topColorButton.enable();
     this.gui.bottomColorButton.enable();
     this.gui.modeButton.enable();
+    this.gui.controlModeButton.enable();
     this.gui.maxPower.enable();
     this.gui.accelerate.enable();
     this.gui.accelerationTime.enable();
@@ -176,6 +214,7 @@ export default class Robot extends EventEmitter {
     this.gui.topColorButton.disable();
     this.gui.bottomColorButton.disable();
     this.gui.modeButton.disable();
+    this.gui.controlModeButton.disable();
     this.gui.maxPower.disable();
     this.gui.accelerate.disable();
     this.gui.accelerationTime.disable();
@@ -190,8 +229,7 @@ export default class Robot extends EventEmitter {
     this._head = await this._hub.waitForDeviceAtPort("D");
     this._colorDistance = await this._hub.waitForDeviceByType(PoweredUP.Consts.DeviceType.COLOR_DISTANCE_SENSOR); // C
     this._led = await this._hub.waitForDeviceByType(PoweredUP.Consts.DeviceType.HUB_LED);
-
-    // Default
+    // Defaults
     this._leftTrack.setMaxPower(this._maxPower);
     this._rightTrack.setMaxPower(this._maxPower);
     this._bothTracks.setMaxPower(this._maxPower);
@@ -226,9 +264,9 @@ export default class Robot extends EventEmitter {
       this._tilt.y = y;
       if (this._tilt.y >= 10) {
         this._bodyOrientation = BodyOrientation.UPSIDE_DOWN;
-      } else if (Math.abs(this._tilt.x) <= 5 && this._tilt.y < -80) {
+      } else if (Math.abs(this._tilt.x) <= 10 && this._tilt.y < -80) {
         this._bodyOrientation = BodyOrientation.UP;
-      } else if (this._tilt.x > 5 && this._tilt.x < 80) {
+      } else if (this._tilt.x > 10 && this._tilt.x < 80) {
         this._bodyOrientation = BodyOrientation.LEAN_LEFT;
       } else if (this._tilt.x >= 80) {
         this._bodyOrientation = BodyOrientation.LEFT;
@@ -236,9 +274,9 @@ export default class Robot extends EventEmitter {
         this._bodyOrientation = BodyOrientation.LEAN_RIGHT;
       } else if (this._tilt.x < -80) {
         this._bodyOrientation = BodyOrientation.RIGHT;
-      } else if (this._tilt.y > -80 && this._tilt.y < -5) {
+      } else if (this._tilt.y > -80 && this._tilt.y < -10) {
         this._bodyOrientation = BodyOrientation.LEAN_BACK;
-      } else if (this._tilt.y > -5) {
+      } else if (this._tilt.y > -10) {
         this._bodyOrientation = BodyOrientation.BACK;
       } else {
         this._bodyOrientation = BodyOrientation.UNKNOWN;
@@ -326,8 +364,16 @@ export default class Robot extends EventEmitter {
 
   start() {
     this.status = Status.STARTED;
+    setTimeout(() => {
+      this.scan();
+    }, 1000);
     this.gui.startButton.disable();
     this.gui.stopButton.enable();
+  }
+
+  scan() {
+    this.status = Status.SCAN;
+
   }
 
   stop() {
@@ -380,11 +426,11 @@ export default class Robot extends EventEmitter {
     }
   }
 
-  async "look left"() {
+  async "slook left"() {
     await this.lookLeft();
   }
 
-  async manualMoveLeftTrack(speed) {
+  async manualMoveLeft(speed) {
     if (this._leftTrack) {
       this.status = Status.MANUAL;
       const relativeSpeed = speed / 100 * this._maxPower;
@@ -392,7 +438,7 @@ export default class Robot extends EventEmitter {
     }
   }
 
-  async manualMoveRightTrack(speed) {
+  async manualMoveRight(speed) {
     if (this._rightTrack) {
       this.status = Status.MANUAL;
       const relativeSpeed = speed / 100 * this._maxPower;
@@ -400,7 +446,7 @@ export default class Robot extends EventEmitter {
     }
   }
 
-  async manualMoveTracks(speedLeft, speedRight) {
+  async manualMove(speedLeft, speedRight) {
     if (this._bothTracks) {
       this.status = Status.MANUAL;
       const relativeLeftSpeed = speedLeft / 100 * this._maxPower;
@@ -409,20 +455,14 @@ export default class Robot extends EventEmitter {
     }
   }
 
-  setModeColor() {
-    this.mode = Mode.COLOR;
-  }
-
-  setModeColorAndDistance() {
-    this.mode = Mode.COLOR_AND_DISTANCE;
-  }
-
-  setModeDistance() {
-    this.mode = Mode.DISTANCE;
-  }
-
-  setModeLED() {
-    this.mode = Mode.LED;
+  async turn(speed) {
+    if (this._bothTracks) {
+      const relativeLeftSpeed = speed / 100 * this._maxPower;
+      const relativeRightSpeed = -speed / 100 * this._maxPower;
+      // TODO: Define speed and time (90, 180, 270, 360)
+      await this._bothTracks.setSpeed([relativeLeftSpeed, relativeRightSpeed]);
+      // TODO: Sync UI
+    }
   }
 
   get topColor() {
@@ -449,15 +489,15 @@ export default class Robot extends EventEmitter {
   }
 
   get hexColor() {
-    return Colors[this._color];
+    return Color[this._color];
   }
 
   get hexTopColor() {
-    return Colors[this._topColor];
+    return Color[this._topColor];
   }
 
   get hexBottomColor() {
-    return Colors[this._bottomColor];
+    return Color[this._bottomColor];
   }
 
   setTopColorBlack() {
@@ -594,6 +634,22 @@ export default class Robot extends EventEmitter {
     this._status = status;
   }
 
+  setModeColor() {
+    this.mode = Mode.COLOR;
+  }
+
+  setModeColorAndDistance() {
+    this.mode = Mode.COLOR_AND_DISTANCE;
+  }
+
+  setModeDistance() {
+    this.mode = Mode.DISTANCE;
+  }
+
+  setModeLED() {
+    this.mode = Mode.LED;
+  }
+
   get mode() {
     return this._mode;
   }
@@ -606,6 +662,22 @@ export default class Robot extends EventEmitter {
       this._topColor = PoweredUP.Consts.Color.BLACK;
       this._colorDistance.subscribe(this._mode);
     }
+  }
+
+  get controlMode() {
+    return this._controlMode;
+  }
+
+  set controlMode(controlMode) {
+    this._controlMode = controlMode;
+  }
+
+  setControlModeSingle() {
+    this.controlMode = ControlMode.SINGLE_STICK;
+  }
+
+  setControlModeDouble() {
+    this.controlMode = ControlMode.DOUBLE_STICK;
   }
 
   get battery() {
@@ -713,12 +785,17 @@ export default class Robot extends EventEmitter {
     }
   }
 
-  get singleStick() {
-    return this._singleStick;
-  }
-
-  set singleStick(state) {
-    this._singleStick = state;
+  update() {
+    switch (this.status) {
+      case Status.MANUAL:
+      case Status.STARTED:
+      case Status.STOPPED:
+      default:
+        break;
+      case Status.SCAN:
+        // TODO: Distance => STOP
+        break;
+    }
   }
 
   loop(fn) {
