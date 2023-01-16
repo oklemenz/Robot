@@ -254,7 +254,7 @@ export default class Robot extends EventEmitter {
         this.emit("battery", 10);
       }
       if (previousBattery > 5 && batteryLevel <= 5) {
-        this.emit("battery", 10);
+        this.emit("battery", 5);
       }
     });
 
@@ -297,20 +297,16 @@ export default class Robot extends EventEmitter {
 
       const previousDistance = this._distance;
       this._distance = distance;
-      if (previousDistance > 20 && distance <= 20) {
-        this.emit("distance", 20);
-      }
-      if (previousDistance > 10 && distance <= 10) {
-        this.emit("distance", 15);
-      }
-      if (previousDistance > 5 && distance <= 5) {
-        this.emit("distance", 5);
-      }
+      _emitDistance(previousDistance, distance);
     });
 
     this._hub.on("distance", (device, { distance }) => {
       const previousDistance = this._distance;
       this._distance = distance;
+      _emitDistance(previousDistance, distance);
+    });
+
+    function _emitDistance(previousDistance, distance) {
       if (previousDistance > 20 && distance <= 20) {
         this.emit("distance", 20);
       }
@@ -320,7 +316,7 @@ export default class Robot extends EventEmitter {
       if (previousDistance > 5 && distance <= 5) {
         this.emit("distance", 5);
       }
-    });
+    }
 
     this._hub.on("rotate", (device, { degrees }) => {
       if (device === this._head) {

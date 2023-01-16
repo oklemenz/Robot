@@ -145,9 +145,9 @@ export default class Control {
         y: -axes[Gamepad.Axis.LY]
       };
       await this.move(position);
-    } else {
-      const leftSpeed = axes[Gamepad.Axis.LY] * 100;
-      const rightSpeed = axes[Gamepad.Axis.RY] * 100;
+    } else if (this.robot.controlMode === this.robot.const.ControlMode.DOUBLE_STICK) {
+      const leftSpeed = -axes[Gamepad.Axis.LY] * 100;
+      const rightSpeed = -axes[Gamepad.Axis.RY] * 100;
       await this.robot.manualMove(leftSpeed, rightSpeed);
     }
   }
