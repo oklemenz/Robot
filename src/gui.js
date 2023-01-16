@@ -3,7 +3,11 @@ import { GUI as LilGUI } from "lilgui";
 export default class GUI extends LilGUI {
   constructor(model) {
     super({ container: document.getElementById("gui") });
+
     this._model = model;
+    this._model.gui = this;
+
+    this.title("Robot");
     const info = this.addFolder("Info");
     info.add(model, "name").listen().disable();
     info.add(model, "connected").listen().disable();
@@ -31,16 +35,17 @@ export default class GUI extends LilGUI {
       .listen()
       .disable();
     this.topColorButton = actions
-      .add(model, "top light", {
+      .add(model, "topColor", {
         off: 0,
         blue: 3,
         green: 5,
         red: 9
       })
+      .name("top light")
       .listen()
       .disable();
     this.bottomColorButton = actions
-      .add(model, "bottom light", {
+      .add(model, "bottomColor", {
         off: 0,
         pink: 1,
         purple: 2,
@@ -53,34 +58,52 @@ export default class GUI extends LilGUI {
         red: 9,
         white: 10
       })
+      .name("bottom light")
       .listen()
       .disable();
     const move = actions.addFolder("Move");
-    this.maxPower = move.add(model, "maxPower", 0, 100).disable();
+    this.maxPower = move.add(model, "maxPower", 0, 100).name("max power").disable();
     this.accelerate = move.add(model, "accelerate").disable();
-    this.accelerationTime = move.add(model, "accelerationTime", 0, 2000).disable();
+    this.accelerationTime = move.add(model, "accelerationTime", 0, 2000).name("acceleration time").disable();
     this.decelerate = move.add(model, "decelerate").disable();
-    this.decelerationTime = move.add(model, "decelerationTime", 0, 2000).disable();
+    this.decelerationTime = move.add(model, "decelerationTime", 0, 2000).name("deceleration time").disable();
     move.open();
     actions.open();
     const sensors = this.addFolder("Sensors");
+    sensors.addColor(model, "hexColor").name("color").disable();
     sensors.add(model, "battery", 0, 100, 1).listen().disable();
     sensors.add(model, "distance", 0, 250, 1).listen().disable();
     sensors.add(model, "rotation", -90, 90, 1).listen().disable();
-    sensors.addColor(model, "color").disable();
+    sensors.add(model, "headOrientation", {
+      center: 0,
+      left: 1,
+      right: 2,
+    }).name("looks").listen().disable();
     const tilt = sensors.addFolder("Tilt");
     tilt.add(model.tilt, "x", -90, 90, 1).listen().disable();
     tilt.add(model.tilt, "y", -90, 90, 1).listen().disable();
+    tilt.add(model, "bodyOrientation", {
+      unknown: 0,
+      up: 1,
+      "upside down": 2,
+      front: 3,
+      back: 4,
+      left: 5,
+      right: 6,
+      "lean front": 7,
+      "lean back": 8,
+      "lean left": 9,
+      "lean right": 10,
+    }).name("orientation").listen().disable();
     tilt.open();
     sensors.add(model, "button").listen().disable();
-    sensors.add(model, "remote button").listen().disable();
-    sensors.add(model, "current", 0, 1000, 1).listen().disable();
-    sensors.add(model, "voltage", 0, 10, 1).listen().disable();
+    sensors.add(model, "remoteButton").name("remote button").listen().disable();
+    sensors.add(model, "current", 0, 1000, 1).decimals(2).listen().disable();
+    sensors.add(model, "voltage", 0, 10, 1).decimals(2).listen().disable();
     sensors.open();
     const lights = this.addFolder("Lights");
-    lights.addColor(model, "top color").listen().disable();
-    lights.addColor(model, "bottom color").listen().disable();
+    lights.addColor(model, "hexTopColor").name("top color").listen().disable();
+    lights.addColor(model, "hexBottomColor").name("bottom color").listen().disable();
     lights.open();
-    model.gui = this;
   }
 }

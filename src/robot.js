@@ -13,28 +13,47 @@ const Status = {
 
 const Colors = {
   [PoweredUP.Consts.Color.BLACK]: "#000000",
-  [PoweredUP.Consts.Color.PINK]: "#FF70F4",
+  [PoweredUP.Consts.Color.PINK]: "#FA91E1",
   [PoweredUP.Consts.Color.PURPLE]: "#D870FF",
   [PoweredUP.Consts.Color.BLUE]: "#477DE9",
   [PoweredUP.Consts.Color.LIGHT_BLUE]: "#47B5E9",
-  [PoweredUP.Consts.Color.CYAN]: "#47DFE9",
+  [PoweredUP.Consts.Color.CYAN]: "#64F5B1",
   [PoweredUP.Consts.Color.GREEN]: "#53E947",
   [PoweredUP.Consts.Color.YELLOW]: "#FBFB58",
-  [PoweredUP.Consts.Color.ORANGE]: "#FBB658",
-  [PoweredUP.Consts.Color.RED]: "#FB6458",
+  [PoweredUP.Consts.Color.ORANGE]: "#FAA51B",
+  [PoweredUP.Consts.Color.RED]: "#FC4732",
   [PoweredUP.Consts.Color.WHITE]: "#FFFFFF"
 };
 
 const Constants = {
-  TRACK_MAX_POWER: 50,
+  HEAD_LOOK_ANGLE: 20,
   HEAD_TURN_SPEED: 50,
   HEAD_TURN_ANGLE: 30,
-  HEAD_SHOOT_ANGLE: 90
+  HEAD_SHOOT_ANGLE: 90,
+  TRACK_MAX_POWER: 50
+};
+
+const BodyOrientation = {
+  UNKNOWN: 0,
+  UP: 1,
+  UPSIDE_DOWN: 2,
+  FRONT: 3,
+  BACK: 4,
+  LEFT: 5,
+  RIGHT: 6,
+  LEAN_FRONT: 7,
+  LEAN_BACK: 8,
+  LEAN_LEFT: 9,
+  LEAN_RIGHT: 10,
+};
+
+const HeadOrientation = {
+  CENTER: 0,
+  LEFT: 1,
+  RIGHT: 2,
 };
 
 // TODO:
-//  - Drive with Controller
-//    - Single Axis drive (toggle mode in UI)
 //  - Scan (rotate 360, record distances)
 //  - Build up map, record/invalidate blocks, update position on map
 //  - AI: Forwards, Stop, Backwards, Rotate Left, Rotate right, Look Left, Look Right
@@ -82,6 +101,8 @@ export default class Robot extends EventEmitter {
     this._tilt = this._tilt || {};
     this._tilt.x = 0;
     this._tilt.y = 0;
+    this._bodyOrientation = BodyOrientation.UNKNOWN;
+    this._headOrientation = HeadOrientation.CENTER;
     this._color = PoweredUP.Consts.Color.BLACK;
     this._distance = 0;
     this._rotation = 0;
@@ -186,51 +207,116 @@ export default class Robot extends EventEmitter {
     });
 
     this._hub.on("batteryLevel", ({ batteryLevel }) => {
+      const previousBattery = this._battery;
       this._battery = batteryLevel;
-      // TODO: Emit: 20%, 10%, 5% (once)
+      if (previousBattery > 20 && batteryLevel <= 20) {
+        this.emit("battery", 20);
+      }
+      if (previousBattery > 10 && batteryLevel <= 10) {
+        this.emit("battery", 10);
+      }
+      if (previousBattery > 5 && batteryLevel <= 5) {
+        this.emit("battery", 10);
+      }
     });
 
     this._hub.on("tilt", (device, { x, y }) => {
+      const previousOrientation = this._bodyOrientation;
       this._tilt.x = x;
       this._tilt.y = y;
-      // TODO: Emit: lean/fall forwards, backwards, left, right, stand straight
+      if (this._tilt.y >= 10) {
+        this._bodyOrientation = BodyOrientation.UPSIDE_DOWN;
+      } else if (Math.abs(this._tilt.x) <= 5 && this._tilt.y < -80) {
+        this._bodyOrientation = BodyOrientation.UP;
+      } else if (this._tilt.x > 5 && this._tilt.x < 80) {
+        this._bodyOrientation = BodyOrientation.LEAN_LEFT;
+      } else if (this._tilt.x >= 80) {
+        this._bodyOrientation = BodyOrientation.LEFT;
+      } else if (this._tilt.x < -5 && this._tilt.x > -80) {
+        this._bodyOrientation = BodyOrientation.LEAN_RIGHT;
+      } else if (this._tilt.x < -80) {
+        this._bodyOrientation = BodyOrientation.RIGHT;
+      } else if (this._tilt.y > -80 && this._tilt.y < -5) {
+        this._bodyOrientation = BodyOrientation.LEAN_BACK;
+      } else if (this._tilt.y > -5) {
+        this._bodyOrientation = BodyOrientation.BACK;
+      } else {
+        this._bodyOrientation = BodyOrientation.UNKNOWN;
+      }
+      if (previousOrientation !== this.bodyOrientation) {
+        this.emit("orientation", this.bodyOrientation);
+      }
     });
 
     this._hub.on("color", (device, { color }) => {
       this._color = color;
-      // TODO: Emit: Red detected...
+      this.emit("color", color);
     });
 
     this._hub.on("colorAndDistance", (device, { color, distance }) => {
       this._color = color;
+      this.emit("color", color);
+
+      const previousDistance = this._distance;
       this._distance = distance;
-      // TODO: Emit: < 20 cm, 10 cm, 5 cm
+      if (previousDistance > 20 && distance <= 20) {
+        this.emit("distance", 20);
+      }
+      if (previousDistance > 10 && distance <= 10) {
+        this.emit("distance", 15);
+      }
+      if (previousDistance > 5 && distance <= 5) {
+        this.emit("distance", 5);
+      }
     });
 
     this._hub.on("distance", (device, { distance }) => {
+      const previousDistance = this._distance;
       this._distance = distance;
-      // TODO: Emit: < 20 cm, 10 cm, 5 cm
+      if (previousDistance > 20 && distance <= 20) {
+        this.emit("distance", 20);
+      }
+      if (previousDistance > 10 && distance <= 10) {
+        this.emit("distance", 15);
+      }
+      if (previousDistance > 5 && distance <= 5) {
+        this.emit("distance", 5);
+      }
     });
 
     this._hub.on("rotate", (device, { degrees }) => {
       if (device === this._head) {
         this._rotation = degrees;
       }
-      // TODO: Emit: Look Left, Look Right, Look Center
+      if (this._rotation <= -Constants.HEAD_LOOK_ANGLE) {
+        this._headOrientation = HeadOrientation.LEFT;
+      } else if (this._rotation >= Constants.HEAD_LOOK_ANGLE) {
+        this._headOrientation = HeadOrientation.RIGHT;
+      } else {
+        this._headOrientation = HeadOrientation.CENTER;
+      }
     });
 
     this._hub.on("button", ({ event }) => {
       this._button = event === PoweredUP.Consts.ButtonState.PRESSED;
       if (this._button) {
         this.onButtonDown();
+        this.emit("button", { pressed: true });
       } else {
         this.onButtonUp();
+        this.emit("button", { pressed: false });
       }
     });
 
     this._hub.on("remoteButton", (device, { event }) => {
       this._remoteButton = event === PoweredUP.Consts.ButtonState.PRESSED;
-      // TODO: Emit: down, up
+      if (this._remoteButton) {
+        this.onRemoteButtonDown();
+        this.emit("remoteButton", { pressed: true });
+      } else {
+        this.onRemoteButtonUp();
+        this.emit("remoteButton", { pressed: false });
+      }
     });
   }
 
@@ -339,28 +425,55 @@ export default class Robot extends EventEmitter {
     this.mode = Mode.LED;
   }
 
-  setTopColorBlack() {
-    this.setTopColor(PoweredUP.Consts.Color.BLACK);
+  get topColor() {
+    return this._topColor;
   }
 
-  setTopColorBlue() {
-    this.setTopColor(PoweredUP.Consts.Color.BLUE);
-  }
-
-  setTopColorGreen() {
-    this.setTopColor(PoweredUP.Consts.Color.CYAN);
-  }
-
-  setTopColorRed() {
-    this.setTopColor(PoweredUP.Consts.Color.RED);
-  }
-
-  setTopColor(color) {
+  set topColor(color) {
     if (this._colorDistance) {
       this.setModeLED();
       this._topColor = color;
       this._colorDistance.setColor(color);
     }
+  }
+
+  get bottomColor() {
+    return this._bottomColor;
+  }
+
+  set bottomColor(color) {
+    if (this._led) {
+      this._bottomColor = color;
+      this._led.setColor(color);
+    }
+  }
+
+  get hexColor() {
+    return Colors[this._color];
+  }
+
+  get hexTopColor() {
+    return Colors[this._topColor];
+  }
+
+  get hexBottomColor() {
+    return Colors[this._bottomColor];
+  }
+
+  setTopColorBlack() {
+    this.topColor = PoweredUP.Consts.Color.BLACK;
+  }
+
+  setTopColorBlue() {
+    this.topColor = PoweredUP.Consts.Color.BLUE;
+  }
+
+  setTopColorGreen() {
+    this.topColor = PoweredUP.Consts.Color.CYAN;
+  }
+
+  setTopColorRed() {
+    this.topColor = PoweredUP.Consts.Color.RED;
   }
 
   increaseTopColor() {
@@ -379,7 +492,7 @@ export default class Robot extends EventEmitter {
         color = PoweredUP.Consts.Color.BLACK;
         break;
     }
-    this.setTopColor(color);
+    this.topColor = color;
   }
 
   decreaseTopColor() {
@@ -398,76 +511,71 @@ export default class Robot extends EventEmitter {
         color = PoweredUP.Consts.Color.CYAN;
         break;
     }
-    this.setTopColor(color);
+    this.topColor = color;
   }
 
   setBottomColorBlack() {
-    this.setBottomColor(PoweredUP.Consts.Color.BLACK);
+    this.bottomColor = PoweredUP.Consts.Color.BLACK;
   }
 
   setBottomColorPink() {
-    this.setBottomColor(PoweredUP.Consts.Color.PINK);
+    this.bottomColor = PoweredUP.Consts.Color.PINK;
   }
 
   setBottomColorPurple() {
-    this.setBottomColor(PoweredUP.Consts.Color.PURPLE);
+    this.bottomColor = PoweredUP.Consts.Color.PURPLE;
   }
 
   setBottomColorBlue() {
-    this.setBottomColor(PoweredUP.Consts.Color.BLUE);
+    this.bottomColor = PoweredUP.Consts.Color.BLUE;
   }
 
   setBottomColorLightBlue() {
-    this.setBottomColor(PoweredUP.Consts.Color.LIGHT_BLUE);
+    this.bottomColor = PoweredUP.Consts.Color.LIGHT_BLUE;
   }
 
   setBottomColorCyan() {
-    this.setBottomColor(PoweredUP.Consts.Color.CYAN);
+    this.bottomColor = PoweredUP.Consts.Color.CYAN;
   }
 
   setBottomColorGreen() {
-    this.setBottomColor(PoweredUP.Consts.Color.GREEN);
+    this.bottomColor = PoweredUP.Consts.Color.GREEN;
   }
 
   setBottomColorYellow() {
-    this.setBottomColor(PoweredUP.Consts.Color.YELLOW);
+    this.bottomColor = PoweredUP.Consts.Color.YELLOW;
   }
 
   setBottomColorOrange() {
-    this.setBottomColor(PoweredUP.Consts.Color.ORANGE);
+    this.bottomColor = PoweredUP.Consts.Color.ORANGE;
   }
 
   setBottomColorRed() {
-    this.setBottomColor(PoweredUP.Consts.Color.RED);
+    this.bottomColor = PoweredUP.Consts.Color.RED;
   }
 
   setBottomColorWhite() {
-    this.setBottomColor(PoweredUP.Consts.Color.WHITE);
-  }
-
-  setBottomColor(color) {
-    if (this._led) {
-      this._bottomColor = color;
-      this._led.setColor(color);
-    }
+    this.bottomColor = PoweredUP.Consts.Color.WHITE;
   }
 
   increaseBottomColor() {
-    this.setBottomColor(
-      this._bottomColor < PoweredUP.Consts.Color.WHITE ? this._bottomColor + 1 : PoweredUP.Consts.Color.BLACK
-    );
+    this.bottomColor = this._bottomColor < PoweredUP.Consts.Color.WHITE ? this._bottomColor + 1 : PoweredUP.Consts.Color.BLACK;
   }
 
   decreaseBottomColor() {
-    this.setBottomColor(
-      this._bottomColor > PoweredUP.Consts.Color.BLACK ? this._bottomColor - 1 : PoweredUP.Consts.Color.WHITE
-    );
+    this.bottomColor = this._bottomColor > PoweredUP.Consts.Color.BLACK ? this._bottomColor - 1 : PoweredUP.Consts.Color.WHITE;
   }
 
   onButtonDown() {
   }
 
   onButtonUp() {
+  }
+
+  onRemoteButtonDown() {
+  }
+
+  onRemoteButtonUp() {
   }
 
   get name() {
@@ -508,6 +616,14 @@ export default class Robot extends EventEmitter {
     return this._tilt;
   }
 
+  get bodyOrientation() {
+    return this._bodyOrientation;
+  }
+
+  get headOrientation() {
+    return this._headOrientation;
+  }
+
   get distance() {
     return this._distance;
   }
@@ -524,44 +640,12 @@ export default class Robot extends EventEmitter {
     return this._remoteButton;
   }
 
-  get "remote button"() {
-    return this._remoteButton;
-  }
-
   get current() {
     return this._current;
   }
 
   get voltage() {
     return this._voltage;
-  }
-
-  get "top light"() {
-    return this._topColor;
-  }
-
-  set "top light"(color) {
-    this.setTopColor(color);
-  }
-
-  get "bottom light"() {
-    return this._bottomColor;
-  }
-
-  set "bottom light"(color) {
-    this.setBottomColor(color);
-  }
-
-  get color() {
-    return Colors[this._color];
-  }
-
-  get "top color"() {
-    return Colors[this._topColor];
-  }
-
-  get "bottom color"() {
-    return Colors[this._bottomColor];
   }
 
   get maxPower() {

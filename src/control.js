@@ -174,7 +174,6 @@ export default class Control {
       leftSpeed = leftSpeed / max * 100;
       rightSpeed = rightSpeed / max * 100;
     }
-    console.log(leftSpeed, rightSpeed);
     await this.robot.manualMoveTracks(leftSpeed, rightSpeed);
   }
 
