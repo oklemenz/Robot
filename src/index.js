@@ -44,7 +44,6 @@ export function init() {
   const robot = new Robot();
   scene.add(new Sandbox());
   scene.add(new RobotViz(robot));
-
   new GUI(robot);
   const virtualJoyStick = new JoyStick("joystick", {
     internalFillColor: "#555555",

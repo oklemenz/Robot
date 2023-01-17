@@ -18,28 +18,7 @@ const Status = {
 };
 
 const Color = {
-  [PoweredUP.Consts.Color.BLACK]: "#000000",
-  [PoweredUP.Consts.Color.PINK]: "#FA91E1",
-  [PoweredUP.Consts.Color.PURPLE]: "#D870FF",
-  [PoweredUP.Consts.Color.BLUE]: "#477DE9",
-  [PoweredUP.Consts.Color.LIGHT_BLUE]: "#47B5E9",
-  [PoweredUP.Consts.Color.CYAN]: "#64F5B1",
-  [PoweredUP.Consts.Color.GREEN]: "#53E947",
-  [PoweredUP.Consts.Color.YELLOW]: "#FBFB58",
-  [PoweredUP.Consts.Color.ORANGE]: "#FAA51B",
-  [PoweredUP.Consts.Color.RED]: "#FC4732",
-  [PoweredUP.Consts.Color.WHITE]: "#FFFFFF"
-};
-
-const TopColor = {
-  OFF: 0,
-  BLUE: 3,
-  GREEN: 5,
-  RED: 9
-}
-
-const BottomColor = {
-  OFF: 0,
+  BLACK: 0,
   PINK: 1,
   PURPLE: 2,
   BLUE: 3,
@@ -49,7 +28,28 @@ const BottomColor = {
   YELLOW: 7,
   ORANGE: 8,
   RED: 9,
-  WHITE: 10
+  WHITE: 10,
+}
+
+const HEXColor = {
+  [Color.BLACK]: "#000000",
+  [Color.PINK]: "#FA91E1",
+  [Color.PURPLE]: "#D870FF",
+  [Color.BLUE]: "#477DE9",
+  [Color.LIGHT_BLUE]: "#47B5E9",
+  [Color.CYAN]: "#64F5B1",
+  [Color.GREEN]: "#53E947",
+  [Color.YELLOW]: "#FBFB58",
+  [Color.ORANGE]: "#FAA51B",
+  [Color.RED]: "#FC4732",
+  [Color.WHITE]: "#FFFFFF"
+};
+
+const TopColor = {
+  BLACK: Color.BLACK,
+  BLUE: Color.BLUE,
+  GREEN: Color.CYAN,
+  RED: Color.RED
 }
 
 const HeadOrientation = {
@@ -76,7 +76,7 @@ const Constants = {
   HEAD_LOOK_ANGLE: 20,
   HEAD_TURN_SPEED: 50,
   HEAD_TURN_ANGLE: 30,
-  HEAD_SHOOT_ANGLE: 90,
+  HEAD_SHOOT_ANGLE: 100,
   TRACK_MAX_POWER: 50
 };
 
@@ -115,7 +115,6 @@ export default class Robot extends EventEmitter {
       Status,
       Color,
       TopColor,
-      BottomColor,
       HeadOrientation,
       BodyOrientation,
     }
@@ -127,12 +126,12 @@ export default class Robot extends EventEmitter {
     this._status = Status.MANUAL;
     this._mode = Mode.DISTANCE;
     this._controlMode = ControlMode.SINGLE_STICK;
-    this._topColor = PoweredUP.Consts.Color.BLACK;
-    this._bottomColor = PoweredUP.Consts.Color.BLUE;
+    this._topColor = TopColor.BLACK;
+    this._bottomColor = Color.BLUE;
     this._maxPower = Constants.TRACK_MAX_POWER;
-    this._accelerate = true;
+    this._accelerate = false;
     this._accelerationTime = 0;
-    this._decelerate = true;
+    this._decelerate = false;
     this._decelerationTime = 0;
     this._battery = 0;
     this._tilt = this._tilt || {};
@@ -140,7 +139,7 @@ export default class Robot extends EventEmitter {
     this._tilt.y = 0;
     this._bodyOrientation = BodyOrientation.UNKNOWN;
     this._headOrientation = HeadOrientation.CENTER;
-    this._color = PoweredUP.Consts.Color.BLACK;
+    this._color = Color.BLACK;
     this._distance = 0;
     this._rotation = 0;
     this._button = false;
@@ -233,6 +232,10 @@ export default class Robot extends EventEmitter {
     this._leftTrack.setMaxPower(this._maxPower);
     this._rightTrack.setMaxPower(this._maxPower);
     this._bothTracks.setMaxPower(this._maxPower);
+    this.accelerate = false;
+    this.accelerationTime = 0;
+    this.decelerate = false;
+    this.decelerationTime = 0;
   }
 
   _observe() {
@@ -358,22 +361,40 @@ export default class Robot extends EventEmitter {
     this.status = Status.MANUAL;
   }
 
-  start() {
+  async wait(ms) {
+    return new Promise(function(resolve) {
+      setTimeout(resolve, ms);
+    });
+  }
+
+  async start() {
     this.status = Status.STARTED;
-    setTimeout(() => {
-      this.scan();
-    }, 1000);
     this.gui.startButton.disable();
     this.gui.stopButton.enable();
+    await this.countdown();
+    await this.scan();
   }
 
-  scan() {
+  async countdown() {
+    await this.wait(500);
+    await this.setLEDColor(Color.RED);
+    await this.wait(100);
+    await this.setLEDColor(Color.YELLOW);
+    await this.wait(100);
+    await this.setLEDColor(Color.GREEN);
+    await this.wait(500);
+  }
+
+  async scan() {
     this.status = Status.SCAN;
-
+    // TODO: Turn 360
   }
 
-  stop() {
+  async stop() {
     this.status = Status.STOPPED;
+    if (this._bothTracks) {
+      await this._bothTracks.setSpeed([0, 0]);
+    }
     this.gui.startButton.enable();
     this.gui.stopButton.disable();
   }
@@ -396,10 +417,6 @@ export default class Robot extends EventEmitter {
     }
   }
 
-  async "look center"() {
-    await this.lookCenter();
-  }
-
   async lookRight() {
     if (this._head) {
       const rotation = Constants.HEAD_TURN_ANGLE - this.rotation;
@@ -409,10 +426,6 @@ export default class Robot extends EventEmitter {
     }
   }
 
-  async "look right"() {
-    await this.lookRight();
-  }
-
   async lookLeft() {
     if (this._head) {
       const rotation = -Constants.HEAD_TURN_ANGLE - this.rotation;
@@ -420,10 +433,6 @@ export default class Robot extends EventEmitter {
       const speed = Constants.HEAD_TURN_SPEED * (rotation > 0 ? 1 : -1);
       await this._head.rotateByDegrees(degrees, speed);
     }
-  }
-
-  async "slook left"() {
-    await this.lookLeft();
   }
 
   async manualMoveLeft(speed) {
@@ -485,47 +494,47 @@ export default class Robot extends EventEmitter {
   }
 
   get hexColor() {
-    return Color[this._color];
+    return HEXColor[this._color];
   }
 
   get hexTopColor() {
-    return Color[this._topColor];
+    return HEXColor[this._topColor];
   }
 
   get hexBottomColor() {
-    return Color[this._bottomColor];
+    return HEXColor[this._bottomColor];
   }
 
   setTopColorBlack() {
-    this.topColor = PoweredUP.Consts.Color.BLACK;
+    this.topColor = TopColor.BLACK;
   }
 
   setTopColorBlue() {
-    this.topColor = PoweredUP.Consts.Color.BLUE;
+    this.topColor = TopColor.BLUE;
   }
 
   setTopColorGreen() {
-    this.topColor = PoweredUP.Consts.Color.CYAN;
+    this.topColor = TopColor.GREEN;
   }
 
   setTopColorRed() {
-    this.topColor = PoweredUP.Consts.Color.RED;
+    this.topColor = TopColor.RED;
   }
 
   increaseTopColor() {
     let color = this._topColor;
     switch (color) {
-      case PoweredUP.Consts.Color.BLACK:
-        color = PoweredUP.Consts.Color.BLUE;
+      case TopColor.BLACK:
+        color = TopColor.BLUE;
         break;
-      case PoweredUP.Consts.Color.BLUE:
-        color = PoweredUP.Consts.Color.CYAN;
+      case TopColor.BLUE:
+        color = TopColor.GREEN;
         break;
-      case PoweredUP.Consts.Color.CYAN:
-        color = PoweredUP.Consts.Color.RED;
+      case TopColor.GREEN:
+        color = TopColor.RED;
         break;
-      case PoweredUP.Consts.Color.RED:
-        color = PoweredUP.Consts.Color.BLACK;
+      case TopColor.RED:
+        color = TopColor.BLACK;
         break;
     }
     this.topColor = color;
@@ -534,72 +543,79 @@ export default class Robot extends EventEmitter {
   decreaseTopColor() {
     let color = this._topColor;
     switch (color) {
-      case PoweredUP.Consts.Color.BLACK:
-        color = PoweredUP.Consts.Color.RED;
+      case TopColor.BLACK:
+        color = TopColor.RED;
         break;
-      case PoweredUP.Consts.Color.BLUE:
-        color = PoweredUP.Consts.Color.BLACK;
+      case TopColor.BLUE:
+        color = TopColor.BLACK;
         break;
-      case PoweredUP.Consts.Color.CYAN:
-        color = PoweredUP.Consts.Color.BLUE;
+      case TopColor.GREEN:
+        color = TopColor.BLUE;
         break;
-      case PoweredUP.Consts.Color.RED:
-        color = PoweredUP.Consts.Color.CYAN;
+      case TopColor.RED:
+        color = TopColor.GREEN;
         break;
     }
     this.topColor = color;
   }
 
   setBottomColorBlack() {
-    this.bottomColor = PoweredUP.Consts.Color.BLACK;
+    this.bottomColor = Color.BLACK;
   }
 
   setBottomColorPink() {
-    this.bottomColor = PoweredUP.Consts.Color.PINK;
+    this.bottomColor = Color.PINK;
   }
 
   setBottomColorPurple() {
-    this.bottomColor = PoweredUP.Consts.Color.PURPLE;
+    this.bottomColor = Color.PURPLE;
   }
 
   setBottomColorBlue() {
-    this.bottomColor = PoweredUP.Consts.Color.BLUE;
+    this.bottomColor = Color.BLUE;
   }
 
   setBottomColorLightBlue() {
-    this.bottomColor = PoweredUP.Consts.Color.LIGHT_BLUE;
+    this.bottomColor = Color.LIGHT_BLUE;
   }
 
   setBottomColorCyan() {
-    this.bottomColor = PoweredUP.Consts.Color.CYAN;
+    this.bottomColor = Color.CYAN;
   }
 
   setBottomColorGreen() {
-    this.bottomColor = PoweredUP.Consts.Color.GREEN;
+    this.bottomColor = Color.GREEN;
   }
 
   setBottomColorYellow() {
-    this.bottomColor = PoweredUP.Consts.Color.YELLOW;
+    this.bottomColor = Color.YELLOW;
   }
 
   setBottomColorOrange() {
-    this.bottomColor = PoweredUP.Consts.Color.ORANGE;
+    this.bottomColor = Color.ORANGE;
   }
 
   setBottomColorRed() {
-    this.bottomColor = PoweredUP.Consts.Color.RED;
+    this.bottomColor = Color.RED;
   }
 
   setBottomColorWhite() {
-    this.bottomColor = PoweredUP.Consts.Color.WHITE;
+    this.bottomColor = Color.WHITE;
   }
 
   increaseBottomColor() {
-    this.bottomColor = this._bottomColor < PoweredUP.Consts.Color.WHITE ? this._bottomColor + 1 : PoweredUP.Consts.Color.BLACK;
+    this.bottomColor = this._bottomColor < Color.WHITE ? this._bottomColor + 1 : Color.BLACK;
   }
 
   decreaseBottomColor() {
-    this.bottomColor = this._bottomColor > PoweredUP.Consts.Color.BLACK ? this._bottomColor - 1 : PoweredUP.Consts.Color.WHITE;
+    this.bottomColor = this._bottomColor > Color.BLACK ? this._bottomColor - 1 : Color.WHITE;
+  }
+
+  async setLEDColor(color) {
+    if (this._led) {
+      this._bottomColor = color;
+      await this._led.setColor(color);
+    }
   }
 
   onButtonDown() {
@@ -655,7 +671,7 @@ export default class Robot extends EventEmitter {
       this._distance = 0;
       this._color = 0;
       this._mode = mode;
-      this._topColor = PoweredUP.Consts.Color.BLACK;
+      this._topColor = TopColor.BLACK;
       this._colorDistance.subscribe(this._mode);
     }
   }

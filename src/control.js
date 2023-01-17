@@ -30,7 +30,7 @@ export default class Control {
   }
 
   _init() {
-    this._gamePadButtonState = {};
+    this._gamePadState = { button: {}, axis: false };
     if (window.ongamepadconnected) {
       return;
     }
@@ -141,7 +141,7 @@ export default class Control {
   async gamepadAxisUpdate(axes) {
     if (this.robot.controlMode === this.robot.const.ControlMode.SINGLE_STICK) {
       const position = {
-        x: -axes[Gamepad.Axis.LX],
+        x: axes[Gamepad.Axis.LX],
         y: -axes[Gamepad.Axis.LY]
       };
       await this.move(position);
@@ -178,15 +178,18 @@ export default class Control {
       gamepad.buttons.forEach((button, num) => {
         const pressed = button.pressed;
         if (pressed) {
-          if (!this._gamePadButtonState[num]) {
+          if (!this._gamePadState.button[num]) {
             this.gamepadButtonPressed(num);
           }
-          this._gamePadButtonState[num] = true;
+          this._gamePadState.button[num] = true;
         } else {
-          this._gamePadButtonState[num] = false;
+          this._gamePadState.button[num] = false;
         }
       });
-      this.gamepadAxisUpdate(gamepad.axes);
+      if (this._gamePadState.axis) {
+        this.gamepadAxisUpdate(gamepad.axes);
+      }
+      this._gamePadState.axis = !!gamepad.axes.find(axis => Math.abs(axis) !== 0);
     }
 
     if (this.virtualJoyStick) {
