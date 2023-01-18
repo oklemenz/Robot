@@ -376,13 +376,13 @@ export default class Robot extends EventEmitter {
   }
 
   async countdown() {
-    await this.wait(500);
+    await this.wait(1000);
     await this.setLEDColor(Color.RED);
-    await this.wait(100);
+    await this.wait(1000);
     await this.setLEDColor(Color.YELLOW);
-    await this.wait(100);
+    await this.wait(1000);
     await this.setLEDColor(Color.GREEN);
-    await this.wait(500);
+    await this.wait(1000);
   }
 
   async scan() {

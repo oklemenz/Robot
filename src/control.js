@@ -13,6 +13,8 @@ const Gamepad = {
   DPadD: 13,
   DPadL: 14,
   DPadR: 15,
+  Home: 16,
+  Record: 17,
   Axis: {
     LX: 0,
     LY: 1,
@@ -129,10 +131,19 @@ export default class Control {
       case Gamepad.DPadR:
         this.robot.lookRight();
         break;
-      case Gamepad.Plus:
-        this.robot.setControlModeSingle();
+      case Gamepad.Home:
+        break;
+      case Gamepad.Record:
+        if ([this.robot.const.Status.MANUAL, this.robot.const.Status.STOPPED].includes(this.robot.status)) {
+          this.robot.start();
+        } else {
+          this.robot.stop();
+        }
         break;
       case Gamepad.Minus:
+        this.robot.setControlModeSingle();
+        break;
+      case Gamepad.Plus:
         this.robot.setControlModeDouble();
         break;
     }
@@ -161,9 +172,9 @@ export default class Control {
   }
 
   async move({ x, y }) {
-    const signY = Math.sign(y) || 1;
-    let leftSpeed = y + signY * x;
-    let rightSpeed = y + signY * -x;
+    const direction = y >= -0.25 ? 1 : -1;
+    let leftSpeed = y + direction * x;
+    let rightSpeed = y + direction * -x;
     const max = Math.max(Math.abs(leftSpeed), Math.abs(rightSpeed));
     if (max !== 0) {
       leftSpeed = leftSpeed / max * 100;
@@ -172,8 +183,21 @@ export default class Control {
     await this.robot.manualMove(leftSpeed, rightSpeed);
   }
 
+  selectGamepad() {
+    let selectedGamepad = null;
+    for (const gamepad of navigator.getGamepads()) {
+      if (!gamepad) {
+        continue;
+      }
+      if (!selectedGamepad || gamepad.buttons.length > selectedGamepad.buttons.length) {
+        selectedGamepad = gamepad;
+      }
+    }
+    return selectedGamepad;
+  }
+
   update() {
-    const gamepad = navigator.getGamepads()[0];
+    const gamepad = this.selectGamepad();
     if (gamepad) {
       gamepad.buttons.forEach((button, num) => {
         const pressed = button.pressed;

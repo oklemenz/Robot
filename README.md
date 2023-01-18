@@ -4,6 +4,7 @@
 
 - Browser: https://robot.oklemenz.de
 - Connect Lego Boost Robot
+- Touch Virtual Joystick / Keyboard
 - Game Controller
   - `Left Stick`: Movement
     - `Up / Down`: Left Track
@@ -18,6 +19,8 @@
   - `R`: Increase Bottom Color
   - `ZL`: Decrease Top Color
   - `ZR`: Increase Top Color
+  - `-`: Single Stick Control
+  - `+`: Double Stick Control
 
 ## Play GitHub Version
 
