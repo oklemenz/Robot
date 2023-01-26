@@ -1,3 +1,6 @@
+import APIPoweredUp from "apiPoweredUp";
+import APIMoveHub from "apiMoveHub";
+
 const Mode = {
   COLOR: 0x00,
   DISTANCE: 0x01,
@@ -10,10 +13,19 @@ const ControlMode = {
   DOUBLE_STICK: 1,
 }
 
+const APIVersion = {
+  PoweredUP: 1,
+  MoveHub: 2,
+};
+
 const Status = {
   MANUAL: 0,
   STARTED: 1,
+  WAIT: 1,
   SCAN: 2,
+  TURN: 3,
+  MOVE: 4,
+  BLOCKED: 5,
   STOPPED: 99
 };
 
@@ -77,7 +89,10 @@ const Constants = {
   HEAD_TURN_SPEED: 50,
   HEAD_TURN_ANGLE: 30,
   HEAD_SHOOT_ANGLE: 100,
-  TRACK_MAX_POWER: 50
+  TRACK_MAX_POWER: 50,
+  BODY_MOVE_SPEED: 50,
+  BODY_TURN_SPEED: 100,
+  BODY_STOP_DISTANCE: 200,
 };
 
 // TODO:
@@ -108,8 +123,11 @@ class EventEmitter {
 export default class Robot extends EventEmitter {
   constructor() {
     super();
+    this._api = null;
+    this._apiVersion = APIVersion.PoweredUP;
     this._init();
     this.const = {
+      APIVersion,
       Mode,
       ControlMode,
       Status,
@@ -118,22 +136,39 @@ export default class Robot extends EventEmitter {
       HeadOrientation,
       BodyOrientation,
     }
+    this._prepare();
+  }
+
+  _prepare() {
+    Object.keys(this.const).forEach((name) => {
+      this.const[name].ui = () => {
+        return Object.keys(this.const[name]).reduce((result, key) => {
+          if (typeof this.const[name][key] === "function") {
+            return result;
+          }
+          const uiKey = key.toLowerCase()
+            .replaceAll("_", " ")
+            .replaceAll(" and ", " & ");
+          result[uiKey] = this.const[name][key];
+          return result;
+        }, {});
+      };
+    });
   }
 
   _init() {
     this._name = "";
-    this._conntected = false;
     this._status = Status.MANUAL;
     this._mode = Mode.DISTANCE;
     this._controlMode = ControlMode.SINGLE_STICK;
     this._topColor = TopColor.BLACK;
     this._bottomColor = Color.BLUE;
     this._maxPower = Constants.TRACK_MAX_POWER;
-    this._accelerate = false;
-    this._accelerationTime = 0;
-    this._decelerate = false;
-    this._decelerationTime = 0;
+    this._friction = 1;
+    this._acceleration = 0;
+    this._deceleration = 0;
     this._battery = 0;
+    this._batteryUpdated = false;
     this._tilt = this._tilt || {};
     this._tilt.x = 0;
     this._tilt.y = 0;
@@ -149,212 +184,83 @@ export default class Robot extends EventEmitter {
   }
 
   async connect() {
-    await new Promise((resolve, reject) => {
-      try {
-        const poweredUP = new window.PoweredUP.PoweredUP();
-        poweredUP.on("discover", async (hub) => {
-          hub.on("attach", (device) => {
-            console.log(`Device ${ device.typeName } attached to port ${ device.portName }`);
-          });
-          hub.on("disconnect", () => {
-            this._disconnected();
-          });
-          await hub.connect();
-          this._connected(hub);
-          resolve(hub);
-        });
-        poweredUP.scan();
-        console.log("Scanning...");
-      } catch (err) {
-        this._connected();
-        reject(err);
-      }
-    });
+    if (this.connected) {
+      return;
+    }
+    switch (this.apiVersion) {
+      case APIVersion.PoweredUP:
+        this._api = new APIPoweredUp(this);
+        break;
+      case APIVersion.MoveHub:
+        this._api = new APIMoveHub(this);
+        break;
+    }
+    await this._api.connect();
   }
 
-  async _connected(hub) {
-    this._init();
-    this._hub = hub;
-    this._name = hub.name;
-    await this._mount();
-    this._observe();
-    this._conntected = true;
-    console.log(`Connected to ${ hub.name }!`);
+  async disconnect() {
+    if (!this.connected) {
+      return;
+    }
+    await this._api.disconnect();
+    this._api = null;
+  }
 
-    this.gui.startButton.enable();
-    this.gui.stopButton.disable();
-    this.gui.shootButton.enable();
-    this.gui.lookCenterButton.enable();
-    this.gui.lookLeftButton.enable();
-    this.gui.lookRightButton.enable();
-    this.gui.topColorButton.enable();
-    this.gui.bottomColorButton.enable();
-    this.gui.modeButton.enable();
-    this.gui.controlModeButton.enable();
-    this.gui.maxPower.enable();
-    this.gui.accelerate.enable();
-    this.gui.accelerationTime.enable();
-    this.gui.decelerate.enable();
-    this.gui.decelerationTime.enable();
+  async _connected() {
+    this._init();
+    this._name = this.api.name;
+    this.maxPower = Constants.TRACK_MAX_POWER;
+    this.acceleration = 0;
+    this.deceleration = 0;
+    console.log(`Connected to ${ this.name }!`);
+
+    this.hud.apiVersion.disable();
+    this.hud.connectButton.disable();
+    this.hud.disconnectButton.enable();
+    this.hud.startButton.enable();
+    this.hud.stopButton.disable();
+    this.hud.shootButton.enable();
+    this.hud.lookCenterButton.enable();
+    this.hud.lookLeftButton.enable();
+    this.hud.lookRightButton.enable();
+    this.hud.turnLeftButton.enable();
+    this.hud.turnRightButton.enable();
+    this.hud.moveUntilButton.enable();
+    this.hud.topColorButton.enable();
+    this.hud.bottomColorButton.enable();
+    this.hud.modeButton.enable();
+    this.hud.controlModeButton.enable();
+    this.hud.maxPower.enable();
+    this.hud.friction.enable();
+    this.hud.acceleration.enable();
+    this.hud.deceleration.enable();
   }
 
   _disconnected() {
     console.log(`Disconnected from hub!`);
-    this._hub = null;
     this._name = "";
-    this._conntected = false;
+    this._api = null;
 
-    this.gui.startButton.disable();
-    this.gui.stopButton.disable();
-    this.gui.shootButton.disable();
-    this.gui.lookCenterButton.disable();
-    this.gui.lookLeftButton.disable();
-    this.gui.lookRightButton.disable();
-    this.gui.topColorButton.disable();
-    this.gui.bottomColorButton.disable();
-    this.gui.modeButton.disable();
-    this.gui.controlModeButton.disable();
-    this.gui.maxPower.disable();
-    this.gui.accelerate.disable();
-    this.gui.accelerationTime.disable();
-    this.gui.decelerate.disable();
-    this.gui.decelerationTime.disable();
-  }
-
-  async _mount() {
-    this._leftTrack = await this._hub.waitForDeviceAtPort("A");
-    this._rightTrack = await this._hub.waitForDeviceAtPort("B");
-    this._bothTracks = await this._hub.waitForDeviceAtPort("AB");
-    this._head = await this._hub.waitForDeviceAtPort("D");
-    this._colorDistance = await this._hub.waitForDeviceByType(PoweredUP.Consts.DeviceType.COLOR_DISTANCE_SENSOR); // C
-    this._led = await this._hub.waitForDeviceByType(PoweredUP.Consts.DeviceType.HUB_LED);
-    // Defaults
-    this._leftTrack.setMaxPower(this._maxPower);
-    this._rightTrack.setMaxPower(this._maxPower);
-    this._bothTracks.setMaxPower(this._maxPower);
-    this.accelerate = false;
-    this.accelerationTime = 0;
-    this.decelerate = false;
-    this.decelerationTime = 0;
-  }
-
-  _observe() {
-    this._hub.on("current", (device, { current }) => {
-      this._current = current;
-    });
-
-    this._hub.on("voltage", (device, { voltage }) => {
-      this._voltage = voltage;
-    });
-
-    this._hub.on("batteryLevel", ({ batteryLevel }) => {
-      const previousBattery = this._battery;
-      this._battery = batteryLevel;
-      if (previousBattery > 20 && batteryLevel <= 20) {
-        this.emit("battery", 20);
-      }
-      if (previousBattery > 10 && batteryLevel <= 10) {
-        this.emit("battery", 10);
-      }
-      if (previousBattery > 5 && batteryLevel <= 5) {
-        this.emit("battery", 5);
-      }
-    });
-
-    this._hub.on("tilt", (device, { x, y }) => {
-      const previousOrientation = this._bodyOrientation;
-      this._tilt.x = x;
-      this._tilt.y = y;
-      if (this._tilt.y >= 10) {
-        this._bodyOrientation = BodyOrientation.UPSIDE_DOWN;
-      } else if (Math.abs(this._tilt.x) <= 10 && this._tilt.y < -80) {
-        this._bodyOrientation = BodyOrientation.UP;
-      } else if (this._tilt.x > 10 && this._tilt.x < 80) {
-        this._bodyOrientation = BodyOrientation.LEAN_LEFT;
-      } else if (this._tilt.x >= 80) {
-        this._bodyOrientation = BodyOrientation.LEFT;
-      } else if (this._tilt.x < -5 && this._tilt.x > -80) {
-        this._bodyOrientation = BodyOrientation.LEAN_RIGHT;
-      } else if (this._tilt.x < -80) {
-        this._bodyOrientation = BodyOrientation.RIGHT;
-      } else if (this._tilt.y > -80 && this._tilt.y < -10) {
-        this._bodyOrientation = BodyOrientation.LEAN_BACK;
-      } else if (this._tilt.y > -10) {
-        this._bodyOrientation = BodyOrientation.BACK;
-      } else {
-        this._bodyOrientation = BodyOrientation.UNKNOWN;
-      }
-      if (previousOrientation !== this.bodyOrientation) {
-        this.emit("orientation", this.bodyOrientation);
-      }
-    });
-
-    this._hub.on("color", (device, { color }) => {
-      this._color = color;
-      this.emit("color", color);
-    });
-
-    this._hub.on("colorAndDistance", (device, { color, distance }) => {
-      this._color = color;
-      this.emit("color", color);
-
-      const previousDistance = this._distance;
-      this._distance = distance;
-      _emitDistance(previousDistance, distance);
-    });
-
-    this._hub.on("distance", (device, { distance }) => {
-      const previousDistance = this._distance;
-      this._distance = distance;
-      _emitDistance(previousDistance, distance);
-    });
-
-    function _emitDistance(previousDistance, distance) {
-      if (previousDistance > 20 && distance <= 20) {
-        this.emit("distance", 20);
-      }
-      if (previousDistance > 10 && distance <= 10) {
-        this.emit("distance", 15);
-      }
-      if (previousDistance > 5 && distance <= 5) {
-        this.emit("distance", 5);
-      }
-    }
-
-    this._hub.on("rotate", (device, { degrees }) => {
-      if (device === this._head) {
-        this._rotation = degrees;
-      }
-      if (this._rotation <= -Constants.HEAD_LOOK_ANGLE) {
-        this._headOrientation = HeadOrientation.LEFT;
-      } else if (this._rotation >= Constants.HEAD_LOOK_ANGLE) {
-        this._headOrientation = HeadOrientation.RIGHT;
-      } else {
-        this._headOrientation = HeadOrientation.CENTER;
-      }
-    });
-
-    this._hub.on("button", ({ event }) => {
-      this._button = event === PoweredUP.Consts.ButtonState.PRESSED;
-      if (this._button) {
-        this.onButtonDown();
-        this.emit("button", { pressed: true });
-      } else {
-        this.onButtonUp();
-        this.emit("button", { pressed: false });
-      }
-    });
-
-    this._hub.on("remoteButton", (device, { event }) => {
-      this._remoteButton = event === PoweredUP.Consts.ButtonState.PRESSED;
-      if (this._remoteButton) {
-        this.onRemoteButtonDown();
-        this.emit("remoteButton", { pressed: true });
-      } else {
-        this.onRemoteButtonUp();
-        this.emit("remoteButton", { pressed: false });
-      }
-    });
+    this.hud.apiVersion.enable();
+    this.hud.connectButton.enable();
+    this.hud.disconnectButton.disable();
+    this.hud.startButton.disable();
+    this.hud.stopButton.disable();
+    this.hud.shootButton.disable();
+    this.hud.lookCenterButton.disable();
+    this.hud.lookLeftButton.disable();
+    this.hud.lookRightButton.disable();
+    this.hud.turnLeftButton.disable();
+    this.hud.turnRightButton.disable();
+    this.hud.moveUntilButton.disable();
+    this.hud.topColorButton.disable();
+    this.hud.bottomColorButton.disable();
+    this.hud.modeButton.disable();
+    this.hud.controlModeButton.disable();
+    this.hud.maxPower.disable();
+    this.hud.friction.disable();
+    this.hud.acceleration.disable();
+    this.hud.deceleration.disable();
   }
 
   manual() {
@@ -368,14 +274,20 @@ export default class Robot extends EventEmitter {
   }
 
   async start() {
+    if (!this.connected) {
+      return;
+    }
     this.status = Status.STARTED;
-    this.gui.startButton.disable();
-    this.gui.stopButton.enable();
+    this.hud.startButton.disable();
+    this.hud.stopButton.enable();
     await this.countdown();
     await this.scan();
   }
 
   async countdown() {
+    if (!this.connected) {
+      return;
+    }
     await this.wait(1000);
     await this.setLEDColor(Color.RED);
     await this.wait(1000);
@@ -386,88 +298,179 @@ export default class Robot extends EventEmitter {
   }
 
   async scan() {
+    if (!this.connected) {
+      return;
+    }
     this.status = Status.SCAN;
     // TODO: Turn 360
   }
 
   async stop() {
+    if (!this.connected) {
+      return;
+    }
     this.status = Status.STOPPED;
-    if (this._bothTracks) {
-      await this._bothTracks.setSpeed([0, 0]);
-    }
-    this.gui.startButton.enable();
-    this.gui.stopButton.disable();
+    await this.stop()
+    this.hud.startButton.enable();
+    this.hud.stopButton.disable();
   }
 
-  async shoot() {
-    if (this._head) {
-      const rotation = Constants.HEAD_SHOOT_ANGLE - this.rotation;
-      const degrees = Math.abs(rotation);
-      const speed = Constants.HEAD_TURN_SPEED * (rotation > 0 ? 1 : -1);
-      await this._head.rotateByDegrees(degrees, speed);
-      await this.lookCenter();
+  async shoot(speed = Constants.HEAD_TURN_SPEED) {
+    if (!this.connected) {
+      return;
     }
+    await this.api.rotateHead(Constants.HEAD_SHOOT_ANGLE - this.rotation, speed);
+    await this.lookCenter();
   }
 
-  async lookCenter() {
-    if (this._head) {
-      const degrees = Math.abs(this.rotation);
-      const speed = Constants.HEAD_TURN_SPEED * (this.rotation > 0 ? -1 : 1);
-      await this._head.rotateByDegrees(degrees, speed);
+  async lookCenter(speed = Constants.HEAD_TURN_SPEED) {
+    if (!this.connected) {
+      return;
     }
+    await this.api.rotateHead(-this.rotation, speed);
   }
 
-  async lookRight() {
-    if (this._head) {
-      const rotation = Constants.HEAD_TURN_ANGLE - this.rotation;
-      const degrees = Math.abs(rotation);
-      const speed = Constants.HEAD_TURN_SPEED * (rotation > 0 ? 1 : -1);
-      await this._head.rotateByDegrees(degrees, speed);
+  async lookRight(speed = Constants.HEAD_TURN_SPEED) {
+    if (!this.connected) {
+      return;
     }
+    await this.api.rotateHead(Constants.HEAD_TURN_ANGLE - this.rotation, speed);
   }
 
-  async lookLeft() {
-    if (this._head) {
-      const rotation = -Constants.HEAD_TURN_ANGLE - this.rotation;
-      const degrees = Math.abs(rotation);
-      const speed = Constants.HEAD_TURN_SPEED * (rotation > 0 ? 1 : -1);
-      await this._head.rotateByDegrees(degrees, speed);
+  async lookLeft(speed = Constants.HEAD_TURN_SPEED) {
+    if (!this.connected) {
+      return;
     }
+    await this.api.rotateHead(-Constants.HEAD_TURN_ANGLE - this.rotation, speed);
   }
 
-  async manualMoveLeft(speed) {
-    if (this._leftTrack) {
-      this.status = Status.MANUAL;
-      const relativeSpeed = speed / 100 * this._maxPower;
-      await this._leftTrack.setSpeed(relativeSpeed);
+  async lookAtAngle(angle = 0, speed = Constants.HEAD_TURN_SPEED) {
+    if (!this.connected) {
+      return;
     }
+    await this.api.rotateHead(angle - this.rotation, speed);
   }
 
-  async manualMoveRight(speed) {
-    if (this._rightTrack) {
-      this.status = Status.MANUAL;
-      const relativeSpeed = speed / 100 * this._maxPower;
-      await this._rightTrack.setSpeed(relativeSpeed);
+  async stopMove() {
+    if (!this.connected) {
+      return;
     }
+    await this.api.stop();
   }
 
   async manualMove(speedLeft, speedRight) {
-    if (this._bothTracks) {
-      this.status = Status.MANUAL;
-      const relativeLeftSpeed = speedLeft / 100 * this._maxPower;
-      const relativeRightSpeed = speedRight / 100 * this._maxPower;
-      await this._bothTracks.setSpeed([relativeLeftSpeed, relativeRightSpeed]);
+    if (!this.connected) {
+      return;
     }
+    this.status = Status.MANUAL;
+    await this.api.move(speedLeft, speedRight);
   }
 
-  async turn(speed) {
-    if (this._bothTracks) {
-      const relativeLeftSpeed = speed / 100 * this._maxPower;
-      const relativeRightSpeed = -speed / 100 * this._maxPower;
-      // TODO: Define speed and time (90, 180, 270, 360)
-      await this._bothTracks.setSpeed([relativeLeftSpeed, relativeRightSpeed]);
-      // TODO: Sync UI
+  async manualTurnLeft(speed = Constants.BODY_TURN_SPEED) {
+    if (!this.connected) {
+      return;
     }
+    await this.manualTurn(-speed, this._turnTimeForAngle(90));
+  }
+
+  async manualTurnRight(speed = Constants.BODY_TURN_SPEED) {
+    if (!this.connected) {
+      return;
+    }
+    await this.manualTurn(speed, this._turnTimeForAngle(90));
+  }
+
+  async manualTurnBack(speed = Constants.BODY_TURN_SPEED) {
+    if (!this.connected) {
+      return;
+    }
+    await this.manualTurn(speed, this._turnTimeForAngle(180));
+  }
+
+  async manualTurn(speed = Constants.BODY_TURN_SPEED, time) {
+    if (!this.connected) {
+      return;
+    }
+    this.status = Status.MANUAL;
+    await this.api.turn(speed, time);
+  }
+
+  async manualMoveUntil() {
+    // TODO
+  }
+
+  async turn(speed = Constants.BODY_TURN_SPEED, time) {
+    if (!this.connected) {
+      return;
+    }
+    if (this.status === Status.TURN) {
+      return;
+    }
+    this.status = Status.TURN;
+    await this.api.turn(speed, time);
+  }
+
+  async turnAngle(speed = Constants.BODY_TURN_SPEED, angle) {
+    if (!this.connected) {
+      return;
+    }
+    await this.turn(speed, this._turnTimeForAngle(angle));
+  }
+
+  async moveUntil(speed = Constants.BODY_MOVE_SPEED) {
+    if (!this.connected) {
+      return;
+    }
+    if (this.status === Status.MOVE) {
+      return;
+    }
+    this.status = Status.MOVE;
+    await this.api.move(speed, speed);
+    const stop = this.loop(async () => {
+      if (this.distance < Constants.BODY_STOP_DISTANCE && this.status === Mode.MOVE) {
+        await this.stop();
+        this.status = Status.BLOCKED;
+        stop();
+      } else if (this.status !== Mode.MOVE) {
+        stop();
+      }
+    });
+  }
+
+  async turnUntil(speed = Constants.BODY_TURN_SPEED, time) {
+    if (!this.connected) {
+      return;
+    }
+    // TODO: Check for distance
+  }
+
+  /**
+   * 90 deg, friction 1
+   * power => time
+   *  0%   => -
+   * 10%   => -
+   * 20%   => -
+   * 30%   => -
+   * 40%   => 915
+   * 50%   => 625
+   * 60%   => 500
+   * 70%   => 410
+   * 80%   => 350
+   * 90%   => 320
+   * 100%  => 300
+   */
+  _turnTimeForAngle(angle = 90) {
+    // Power law curve: https://elsenaju.eu/Calculator/online-curve-fit.htm
+    return this.friction * angle * 1000 * Math.pow(this.maxPower, -1.256);
+  }
+
+  get color() {
+    return this._color;
+  }
+
+  _setColor(color) {
+    this._color = color;
+    this.emit("color", color);
   }
 
   get topColor() {
@@ -475,11 +478,12 @@ export default class Robot extends EventEmitter {
   }
 
   set topColor(color) {
-    if (this._colorDistance) {
-      this.setModeLED();
-      this._topColor = color;
-      this._colorDistance.setColor(color);
+    if (!this.connected) {
+      return;
     }
+    this.setModeLED();
+    this._topColor = color;
+    this.api.setSensorColor(color);
   }
 
   get bottomColor() {
@@ -487,22 +491,47 @@ export default class Robot extends EventEmitter {
   }
 
   set bottomColor(color) {
-    if (this._led) {
-      this._bottomColor = color;
-      this._led.setColor(color);
+    if (!this.connected) {
+      return;
     }
+    this._bottomColor = color;
+    this.api.setLEDColor(color);
   }
 
   get hexColor() {
+    if (!this.connected) {
+      return HEXColor[Color.BLACK];
+    }
     return HEXColor[this._color];
   }
 
   get hexTopColor() {
+    if (!this.connected) {
+      return HEXColor[Color.BLACK];
+    }
     return HEXColor[this._topColor];
   }
 
   get hexBottomColor() {
+    if (!this.connected) {
+      return HEXColor[Color.BLACK];
+    }
     return HEXColor[this._bottomColor];
+  }
+
+  get hexBatteryColor() {
+    if (!this.connected) {
+      return HEXColor[Color.BLACK];
+    }
+    if (!this._batteryUpdated) {
+      return HEXColor[Color.BLACK];
+    }
+    if (this.battery >= 20) {
+      return HEXColor[Color.GREEN];
+    } else if (this.battery >= 10) {
+      return HEXColor[Color.YELLOW];
+    }
+    return HEXColor[Color.RED];
   }
 
   setTopColorBlack() {
@@ -612,10 +641,11 @@ export default class Robot extends EventEmitter {
   }
 
   async setLEDColor(color) {
-    if (this._led) {
-      this._bottomColor = color;
-      await this._led.setColor(color);
+    if (!this.connected) {
+      return;
     }
+    this._bottomColor = color;
+    await this.api.setLEDColor(color);
   }
 
   onButtonDown() {
@@ -635,7 +665,19 @@ export default class Robot extends EventEmitter {
   }
 
   get connected() {
-    return this._conntected;
+    return !!(this.api?.connected);
+  }
+
+  get apiVersion() {
+    return this._apiVersion;
+  }
+
+  set apiVersion(apiVersion) {
+    this._apiVersion = apiVersion;
+  }
+
+  get api() {
+    return this._api;
   }
 
   get status() {
@@ -667,13 +709,14 @@ export default class Robot extends EventEmitter {
   }
 
   set mode(mode) {
-    if (this._colorDistance) {
-      this._distance = 0;
-      this._color = 0;
-      this._mode = mode;
-      this._topColor = TopColor.BLACK;
-      this._colorDistance.subscribe(this._mode);
+    if (!this.connected) {
+      return;
     }
+    this._distance = 0;
+    this._color = 0;
+    this._mode = mode;
+    this._topColor = TopColor.BLACK;
+    this.api.setSensorMode(mode)
   }
 
   get controlMode() {
@@ -696,8 +739,51 @@ export default class Robot extends EventEmitter {
     return this._battery;
   }
 
+  _setBattery(battery) {
+    const previousBattery = this._battery;
+    this._battery = battery;
+    this._batteryUpdated = true;
+    if (previousBattery > 20 && battery <= 20) {
+      this.emit("battery", 20);
+    }
+    if (previousBattery > 10 && battery <= 10) {
+      this.emit("battery", 10);
+    }
+    if (previousBattery > 5 && battery <= 5) {
+      this.emit("battery", 5);
+    }
+  }
+
   get tilt() {
     return this._tilt;
+  }
+
+  _setTilt(tilt) {
+    const previousOrientation = this._bodyOrientation;
+    this._tilt.x = tilt.x;
+    this._tilt.y = tilt.y;
+    if (this._tilt.y >= 10) {
+      this._bodyOrientation = BodyOrientation.UPSIDE_DOWN;
+    } else if (Math.abs(this._tilt.x) <= 10 && this._tilt.y < -80) {
+      this._bodyOrientation = BodyOrientation.UP;
+    } else if (this._tilt.x > 10 && this._tilt.x < 80) {
+      this._bodyOrientation = BodyOrientation.LEAN_LEFT;
+    } else if (this._tilt.x >= 80) {
+      this._bodyOrientation = BodyOrientation.LEFT;
+    } else if (this._tilt.x < -5 && this._tilt.x > -80) {
+      this._bodyOrientation = BodyOrientation.LEAN_RIGHT;
+    } else if (this._tilt.x < -80) {
+      this._bodyOrientation = BodyOrientation.RIGHT;
+    } else if (this._tilt.y > -80 && this._tilt.y < -10) {
+      this._bodyOrientation = BodyOrientation.LEAN_BACK;
+    } else if (this._tilt.y > -10) {
+      this._bodyOrientation = BodyOrientation.BACK;
+    } else {
+      this._bodyOrientation = BodyOrientation.UNKNOWN;
+    }
+    if (previousOrientation !== this.bodyOrientation) {
+      this.emit("orientation", this.bodyOrientation);
+    }
   }
 
   get bodyOrientation() {
@@ -712,24 +798,79 @@ export default class Robot extends EventEmitter {
     return this._distance;
   }
 
+  _setDistance(distance) {
+    const previousDistance = this._distance;
+    this._distance = distance;
+    if (previousDistance > 20 && distance <= 20) {
+      this.emit("distance", 20);
+    }
+    if (previousDistance > 10 && distance <= 10) {
+      this.emit("distance", 15);
+    }
+    if (previousDistance > 5 && distance <= 5) {
+      this.emit("distance", 5);
+    }
+  }
+
   get rotation() {
     return this._rotation;
+  }
+
+  _setRotation(degrees) {
+    this._rotation = degrees;
+    if (this._rotation <= -Constants.HEAD_LOOK_ANGLE) {
+      this._headOrientation = HeadOrientation.LEFT;
+    } else if (this._rotation >= Constants.HEAD_LOOK_ANGLE) {
+      this._headOrientation = HeadOrientation.RIGHT;
+    } else {
+      this._headOrientation = HeadOrientation.CENTER;
+    }
   }
 
   get button() {
     return this._button;
   }
 
+  _setButton(pressed) {
+    this._button = pressed;
+    if (this._button) {
+      this.onButtonDown();
+      this.emit("button", { pressed: true });
+    } else {
+      this.onButtonUp();
+      this.emit("button", { pressed: false });
+    }
+  }
+
   get remoteButton() {
     return this._remoteButton;
+  }
+
+  _setRemoteButton(pressed) {
+    this._remoteButton = pressed;
+    if (this._remoteButton) {
+      this.onRemoteButtonDown();
+      this.emit("remoteButton", { pressed: true });
+    } else {
+      this.onRemoteButtonUp();
+      this.emit("remoteButton", { pressed: false });
+    }
   }
 
   get current() {
     return this._current;
   }
 
+  _setCurrent(current) {
+    this._current = current;
+  }
+
   get voltage() {
     return this._voltage;
+  }
+
+  _setVoltage(voltage) {
+    this._voltage = voltage;
   }
 
   get maxPower() {
@@ -737,64 +878,43 @@ export default class Robot extends EventEmitter {
   }
 
   set maxPower(maxPower) {
-    if (this._bothTracks) {
-      this._maxPower = maxPower;
-      this._leftTrack.setMaxPower(maxPower);
-      this._rightTrack.setMaxPower(maxPower);
-      this._bothTracks.setMaxPower(maxPower);
+    if (!this.connected) {
+      return;
     }
+    this._maxPower = maxPower;
+    this.api.setMaxPower(maxPower);
   }
 
-  get accelerate() {
-    return this._accelerate;
+  get friction() {
+    return this._friction;
   }
 
-  set accelerate(state) {
-    if (this._bothTracks) {
-      this._accelerate = state;
-      this._leftTrack.useAccelerationProfile = state;
-      this._rightTrack.useAccelerationProfile = state;
-      this._bothTracks.useAccelerationProfile = state;
+  set friction(friction) {
+    this._friction = friction;
+  }
+
+  get acceleration() {
+    return this._acceleration;
+  }
+
+  set acceleration(time) {
+    if (!this.connected) {
+      return;
     }
+    this._acceleration = time;
+    this.api.setAcceleration(time);
   }
 
-  get accelerationTime() {
-    return this._accelerationTime;
+  get deceleration() {
+    return this._deceleration;
   }
 
-  set accelerationTime(time) {
-    if (this._bothTracks) {
-      this._accelerationTime = time;
-      this._leftTrack.setAccelerationTime(time);
-      this._rightTrack.setAccelerationTime(time);
-      this._bothTracks.setAccelerationTime(time);
+  set deceleration(time) {
+    if (!this.connected) {
+      return;
     }
-  }
-
-  get decelerate() {
-    return this._decelerate;
-  }
-
-  set decelerate(state) {
-    if (this._bothTracks) {
-      this._decelerate = state;
-      this._leftTrack.useDecelerationProfile = state;
-      this._rightTrack.useDecelerationProfile = state;
-      this._bothTracks.useDecelerationProfile = state;
-    }
-  }
-
-  get decelerationTime() {
-    return this._decelerationTime;
-  }
-
-  set decelerationTime(time) {
-    if (this._bothTracks) {
-      this._decelerationTime = time;
-      this._leftTrack.setDecelerationTime(time);
-      this._rightTrack.setDecelerationTime(time);
-      this._bothTracks.setDecelerationTime(time);
-    }
+    this._deceleration = time;
+    this.api.setDeceleration(time);
   }
 
   update() {
@@ -805,14 +925,26 @@ export default class Robot extends EventEmitter {
       default:
         break;
       case Status.SCAN:
-        // TODO: Distance => STOP
+        this.stop();
         break;
     }
   }
 
+  call(time, fn) {
+    const handle = setTimeout(() => {
+      fn && fn();
+    }, time);
+    return () => {
+      clearTimeout(handle);
+    };
+  }
+
   loop(fn) {
-    setTimeout(() => {
+    const handle = setInterval(() => {
       fn && fn();
     }, 10);
+    return () => {
+      clearInterval(handle);
+    };
   }
 }

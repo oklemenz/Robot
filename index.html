@@ -20,6 +20,7 @@
     <link rel="manifest" href="site.webmanifest" />
     <link type="text/css" rel="stylesheet" href="css/style.css" />
   </head>
+  <script src="./lib/es-module-shims.js"></script>
   <script type="importmap">
     {
       "imports": {
@@ -33,13 +34,14 @@
         "gui": "./src/gui.js",
         "robot": "./src/robot.js",
         "robotViz": "./src/robotViz.js",
-        "control": "./src/control.js"
+        "control": "./src/control.js",
+        "apiPoweredUp": "./src/api/poweredup.js",
+        "apiMoveHub": "./src/api/movehub.js"
       }
     }
   </script>
   <body>
-    <script src="./lib/es-module-shims.js"></script>
-    <script src="./lib/poweredup.min.js"></script>
+    <script src="./lib/poweredup.js"></script>
     <script src="./lib/joy.js"></script>
     <script type="module" src="src/index.js"></script>
     <div id="container" class="container"></div>

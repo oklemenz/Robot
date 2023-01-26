@@ -33,24 +33,20 @@ export function init() {
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.update();
-  controls.enablePan = false;
+  controls.enablePan = true;
   controls.enableRotate = false;
   controls.enableZoom = true;
   controls.enableDamping = true;
+  controls.touches.ONE = THREE.TOUCH.PAN;
 
   const light = new THREE.AmbientLight(0xfff0dd, 1);
   scene.add(light);
 
-  const robot = new Robot();
   scene.add(new Sandbox());
+  const robot = new Robot();
   scene.add(new RobotViz(robot));
+  const control = new Control(robot);
   new GUI(robot);
-  const virtualJoyStick = new JoyStick("joystick", {
-    internalFillColor: "#555555",
-    internalStrokeColor: "#000000",
-    externalStrokeColor: "#000000",
-  });
-  const control = new Control(robot, virtualJoyStick);
 
   render();
 

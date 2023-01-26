@@ -25,9 +25,13 @@ const Gamepad = {
 
 export default class Control {
 
-  constructor(robot, virtualJoyStick) {
+  constructor(robot) {
     this.robot = robot;
-    this.virtualJoyStick = virtualJoyStick;
+    this.virtualJoyStick = new JoyStick("joystick", {
+      internalFillColor: "#555555",
+      internalStrokeColor: "#000000",
+      externalStrokeColor: "#000000",
+    });
     this._init();
   }
 
