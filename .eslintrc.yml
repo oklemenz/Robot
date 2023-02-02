@@ -8,6 +8,7 @@ parserOptions:
   ecmaVersion: 2022
   sourceType: module
 globals:
+  alert: false
   window: false
   history: false
   document: false

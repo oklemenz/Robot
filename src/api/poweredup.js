@@ -1,5 +1,4 @@
 export default class APIPoweredUP {
-
   constructor(robot) {
     this.robot = robot;
     this.hub = null;
@@ -19,7 +18,9 @@ export default class APIPoweredUP {
         const poweredUP = new window.PoweredUP.PoweredUP();
         poweredUP.on("discover", async (hub) => {
           hub.on("attach", (device) => {
-            console.log(`Device ${ device.typeName || device.type } attached to port ${ device.portName || device.portId }`);
+            console.log(
+              `Device ${device.typeName || device.type} attached to port ${device.portName || device.portId}`
+            );
           });
           hub.on("disconnect", () => {
             this.robot._disconnected();
@@ -181,7 +182,7 @@ export default class APIPoweredUP {
     if (!this.connected) {
       return false;
     }
-    await this.bothTracks.setSpeed([speedLeft / 100 * this.maxPower, speedRight / 100 * this.maxPower], time);
+    await this.bothTracks.setSpeed([(speedLeft / 100) * this.maxPower, (speedRight / 100) * this.maxPower], time);
     return true;
   }
 
@@ -189,8 +190,8 @@ export default class APIPoweredUP {
     if (!this.connected) {
       return false;
     }
-    this.leftTrack.setSpeed(speed / 100 * this.maxPower, time);
-    this.rightTrack.setSpeed(-speed / 100 * this.maxPower, time);
+    this.leftTrack.setSpeed((speed / 100) * this.maxPower, time);
+    this.rightTrack.setSpeed((-speed / 100) * this.maxPower, time);
     return true;
   }
 

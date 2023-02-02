@@ -44,10 +44,7 @@ export default class GUI extends LilGUI {
     this.stopButton = auto.add(this.robot, "stop").disable();
     auto.open();
     const settings = this.addFolder("Settings");
-    this.modeButton = settings
-      .add(this.robot, "mode", this.robot.const.Mode.ui())
-      .listen()
-      .disable();
+    this.modeButton = settings.add(this.robot, "mode", this.robot.const.Mode.ui()).listen().disable();
     this.topColorButton = settings
       .add(this.robot, "topColor", this.robot.const.TopColor.ui())
       .name("top light")
@@ -75,7 +72,11 @@ export default class GUI extends LilGUI {
     const tilt = sensors.addFolder("Tilt");
     tilt.add(this.robot.tilt, "x", -90, 90, 1).listen().disable();
     tilt.add(this.robot.tilt, "y", -90, 90, 1).listen().disable();
-    tilt.add(this.robot, "bodyOrientation", this.robot.const.BodyOrientation.ui()).name("orientation").listen().disable();
+    tilt
+      .add(this.robot, "bodyOrientation", this.robot.const.BodyOrientation.ui())
+      .name("orientation")
+      .listen()
+      .disable();
     tilt.open();
     sensors.add(this.robot, "button").listen().disable();
     sensors.add(this.robot, "remoteButton").name("remote button").listen().disable();

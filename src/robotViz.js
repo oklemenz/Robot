@@ -1,7 +1,6 @@
 import * as THREE from "three";
 
 export default class RobotViz extends THREE.Group {
-
   constructor(robot) {
     super();
     this.link(robot);

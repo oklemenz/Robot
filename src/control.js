@@ -24,13 +24,12 @@ const Gamepad = {
 };
 
 export default class Control {
-
   constructor(robot) {
     this.robot = robot;
     this.virtualJoyStick = new JoyStick("joystick", {
       internalFillColor: "#555555",
       internalStrokeColor: "#000000",
-      externalStrokeColor: "#000000",
+      externalStrokeColor: "#000000"
     });
     this._init();
   }
@@ -181,8 +180,8 @@ export default class Control {
     let rightSpeed = y + direction * -x;
     const max = Math.max(Math.abs(leftSpeed), Math.abs(rightSpeed));
     if (max !== 0) {
-      leftSpeed = leftSpeed / max * 100;
-      rightSpeed = rightSpeed / max * 100;
+      leftSpeed = (leftSpeed / max) * 100;
+      rightSpeed = (rightSpeed / max) * 100;
     }
     await this.robot.manualMove(leftSpeed, rightSpeed);
   }
@@ -217,20 +216,20 @@ export default class Control {
       if (this._gamePadState.axis) {
         this.gamepadAxisUpdate(gamepad.axes);
       }
-      this._gamePadState.axis = !!gamepad.axes.find(axis => Math.abs(axis) !== 0);
+      this._gamePadState.axis = !!gamepad.axes.find((axis) => Math.abs(axis) !== 0);
     }
 
     if (this.virtualJoyStick) {
       if (this.virtualJoyStick.IsPressed()) {
         this.virtualJoystickUpdate({
           x: this.virtualJoyStick.GetX() / 100,
-          y: this.virtualJoyStick.GetY() / 100,
+          y: this.virtualJoyStick.GetY() / 100
         });
         this.virtualJoyStick.released = false;
       } else if (!this.virtualJoyStick.released) {
         this.virtualJoystickUpdate({
           x: 0,
-          y: 0,
+          y: 0
         });
         this.virtualJoyStick.released = true;
       }

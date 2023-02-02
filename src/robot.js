@@ -10,12 +10,12 @@ const Mode = {
 
 const ControlMode = {
   SINGLE_STICK: 0,
-  DOUBLE_STICK: 1,
-}
+  DOUBLE_STICK: 1
+};
 
 const APIVersion = {
   PoweredUP: 1,
-  MoveHub: 2,
+  MoveHub: 2
 };
 
 const Status = {
@@ -40,8 +40,8 @@ const Color = {
   YELLOW: 7,
   ORANGE: 8,
   RED: 9,
-  WHITE: 10,
-}
+  WHITE: 10
+};
 
 const HEXColor = {
   [Color.BLACK]: "#000000",
@@ -62,12 +62,12 @@ const TopColor = {
   BLUE: Color.BLUE,
   GREEN: Color.CYAN,
   RED: Color.RED
-}
+};
 
 const HeadOrientation = {
   CENTER: 0,
   LEFT: 1,
-  RIGHT: 2,
+  RIGHT: 2
 };
 
 const BodyOrientation = {
@@ -81,7 +81,7 @@ const BodyOrientation = {
   LEAN_FRONT: 7,
   LEAN_BACK: 8,
   LEAN_LEFT: 9,
-  LEAN_RIGHT: 10,
+  LEAN_RIGHT: 10
 };
 
 const Constants = {
@@ -92,7 +92,7 @@ const Constants = {
   TRACK_MAX_POWER: 50,
   BODY_MOVE_SPEED: 50,
   BODY_TURN_SPEED: 100,
-  BODY_STOP_DISTANCE: 200,
+  BODY_STOP_DISTANCE: 200
 };
 
 // TODO:
@@ -102,20 +102,20 @@ const Constants = {
 
 class EventEmitter {
   constructor() {
-    this.callbacks = {}
+    this.callbacks = {};
   }
 
   on(event, cb) {
     if (!this.callbacks[event]) {
       this.callbacks[event] = [];
     }
-    this.callbacks[event].push(cb)
+    this.callbacks[event].push(cb);
   }
 
   emit(event, data) {
-    let cbs = this.callbacks[event]
+    let cbs = this.callbacks[event];
     if (cbs) {
-      cbs.forEach(cb => cb(data))
+      cbs.forEach((cb) => cb(data));
     }
   }
 }
@@ -134,8 +134,8 @@ export default class Robot extends EventEmitter {
       Color,
       TopColor,
       HeadOrientation,
-      BodyOrientation,
-    }
+      BodyOrientation
+    };
     this._prepare();
   }
 
@@ -146,9 +146,7 @@ export default class Robot extends EventEmitter {
           if (typeof this.const[name][key] === "function") {
             return result;
           }
-          const uiKey = key.toLowerCase()
-            .replaceAll("_", " ")
-            .replaceAll(" and ", " & ");
+          const uiKey = key.toLowerCase().replaceAll("_", " ").replaceAll(" and ", " & ");
           result[uiKey] = this.const[name][key];
           return result;
         }, {});
@@ -187,6 +185,10 @@ export default class Robot extends EventEmitter {
     if (this.connected) {
       return;
     }
+    if (!navigator.bluetooth) {
+      alert("Browser does not support bluetooth connections");
+      return;
+    }
     switch (this.apiVersion) {
       case APIVersion.PoweredUP:
         this._api = new APIPoweredUp(this);
@@ -212,7 +214,7 @@ export default class Robot extends EventEmitter {
     this.maxPower = Constants.TRACK_MAX_POWER;
     this.acceleration = 0;
     this.deceleration = 0;
-    console.log(`Connected to ${ this.name }!`);
+    console.log(`Connected to ${this.name}!`);
 
     this.hud.apiVersion.disable();
     this.hud.connectButton.disable();
@@ -268,7 +270,7 @@ export default class Robot extends EventEmitter {
   }
 
   async wait(ms) {
-    return new Promise(function(resolve) {
+    return new Promise(function (resolve) {
       setTimeout(resolve, ms);
     });
   }
@@ -310,7 +312,7 @@ export default class Robot extends EventEmitter {
       return;
     }
     this.status = Status.STOPPED;
-    await this.stop()
+    await this.stop();
     this.hud.startButton.enable();
     this.hud.stopButton.disable();
   }
@@ -648,24 +650,20 @@ export default class Robot extends EventEmitter {
     await this.api.setLEDColor(color);
   }
 
-  onButtonDown() {
-  }
+  onButtonDown() {}
 
-  onButtonUp() {
-  }
+  onButtonUp() {}
 
-  onRemoteButtonDown() {
-  }
+  onRemoteButtonDown() {}
 
-  onRemoteButtonUp() {
-  }
+  onRemoteButtonUp() {}
 
   get name() {
     return this._name;
   }
 
   get connected() {
-    return !!(this.api?.connected);
+    return !!this.api?.connected;
   }
 
   get apiVersion() {
@@ -716,7 +714,7 @@ export default class Robot extends EventEmitter {
     this._color = 0;
     this._mode = mode;
     this._topColor = TopColor.BLACK;
-    this.api.setSensorMode(mode)
+    this.api.setSensorMode(mode);
   }
 
   get controlMode() {
