@@ -1,3 +1,5 @@
+const TURN_FACTOR = 2.56;
+
 export default class APIPoweredUP {
   constructor(robot) {
     this.robot = robot;
@@ -29,7 +31,7 @@ export default class APIPoweredUP {
           await hub.connect();
           await this.mount();
           await this.observe();
-          await this.robot._connected();
+          this.robot._connected();
           resolve();
         });
         poweredUP.scan();
@@ -186,12 +188,16 @@ export default class APIPoweredUP {
     return true;
   }
 
-  async turn(speed, time) {
+  async turn(degrees, speed) {
     if (!this.connected) {
       return false;
     }
-    this.leftTrack.setSpeed((speed / 100) * this.maxPower, time);
-    this.rightTrack.setSpeed((-speed / 100) * this.maxPower, time);
+    if (degrees < 0) {
+      degrees *= -1;
+      speed *= -1;
+    }
+    this.leftTrack.rotateByDegrees(degrees * TURN_FACTOR, speed);
+    this.rightTrack.rotateByDegrees(degrees * TURN_FACTOR, -speed);
     return true;
   }
 

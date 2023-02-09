@@ -208,7 +208,7 @@ export default class Robot extends EventEmitter {
     this._api = null;
   }
 
-  async _connected() {
+  _connected() {
     this._init();
     this._name = this.api.name;
     this.maxPower = Constants.TRACK_MAX_POWER;
@@ -227,6 +227,8 @@ export default class Robot extends EventEmitter {
     this.hud.lookRightButton.enable();
     this.hud.turnLeftButton.enable();
     this.hud.turnRightButton.enable();
+    this.hud.turnAroundButton.enable();
+    this.hud.turnFullButton.enable();
     this.hud.moveUntilButton.enable();
     this.hud.topColorButton.enable();
     this.hud.bottomColorButton.enable();
@@ -239,7 +241,7 @@ export default class Robot extends EventEmitter {
   }
 
   _disconnected() {
-    console.log(`Disconnected from hub!`);
+    console.log(`Disconnected from hub ${this._name}!`);
     this._name = "";
     this._api = null;
 
@@ -254,6 +256,8 @@ export default class Robot extends EventEmitter {
     this.hud.lookRightButton.disable();
     this.hud.turnLeftButton.disable();
     this.hud.turnRightButton.disable();
+    this.hud.turnAroundButton.disable();
+    this.hud.turnFullButton.disable();
     this.hud.moveUntilButton.disable();
     this.hud.topColorButton.disable();
     this.hud.bottomColorButton.disable();
@@ -312,7 +316,6 @@ export default class Robot extends EventEmitter {
       return;
     }
     this.status = Status.STOPPED;
-    await this.stop();
     this.hud.startButton.enable();
     this.hud.stopButton.disable();
   }
@@ -365,6 +368,7 @@ export default class Robot extends EventEmitter {
       return;
     }
     this.status = Status.MANUAL;
+    // TODO: Accelerate: =0
     await this.api.move(speedLeft, speedRight);
   }
 
@@ -372,29 +376,37 @@ export default class Robot extends EventEmitter {
     if (!this.connected) {
       return;
     }
-    await this.manualTurn(-speed, this._turnTimeForAngle(90));
+    await this.manualTurn(-90, speed);
   }
 
   async manualTurnRight(speed = Constants.BODY_TURN_SPEED) {
     if (!this.connected) {
       return;
     }
-    await this.manualTurn(speed, this._turnTimeForAngle(90));
+    await this.manualTurn(90, speed);
   }
 
-  async manualTurnBack(speed = Constants.BODY_TURN_SPEED) {
+  async manualTurnAround(speed = Constants.BODY_TURN_SPEED) {
     if (!this.connected) {
       return;
     }
-    await this.manualTurn(speed, this._turnTimeForAngle(180));
+    await this.manualTurn(180, speed);
   }
 
-  async manualTurn(speed = Constants.BODY_TURN_SPEED, time) {
+  async manualTurnFull(speed = Constants.BODY_TURN_SPEED) {
+    if (!this.connected) {
+      return;
+    }
+    await this.manualTurn(360, speed);
+  }
+
+  async manualTurn(speed = Constants.BODY_TURN_SPEED, degrees) {
     if (!this.connected) {
       return;
     }
     this.status = Status.MANUAL;
-    await this.api.turn(speed, time);
+    // TODO: Accelerate: >0
+    await this.api.turn(speed, degrees);
   }
 
   async manualMoveUntil() {
@@ -444,26 +456,6 @@ export default class Robot extends EventEmitter {
       return;
     }
     // TODO: Check for distance
-  }
-
-  /**
-   * 90 deg, friction 1
-   * power => time
-   *  0%   => -
-   * 10%   => -
-   * 20%   => -
-   * 30%   => -
-   * 40%   => 915
-   * 50%   => 625
-   * 60%   => 500
-   * 70%   => 410
-   * 80%   => 350
-   * 90%   => 320
-   * 100%  => 300
-   */
-  _turnTimeForAngle(angle = 90) {
-    // Power law curve: https://elsenaju.eu/Calculator/online-curve-fit.htm
-    return this.friction * angle * 1000 * Math.pow(this.maxPower, -1.256);
   }
 
   get color() {

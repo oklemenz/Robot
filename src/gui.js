@@ -31,13 +31,23 @@ export default class GUI extends LilGUI {
       .name("gamepad")
       .listen()
       .disable();
-    this.shootButton = manual.add(this.robot, "shoot").disable();
-    this.lookCenterButton = manual.add(this.robot, "lookCenter").name("look center").disable();
-    this.lookLeftButton = manual.add(this.robot, "lookLeft").name("look left").disable();
-    this.lookRightButton = manual.add(this.robot, "lookRight").name("look right").disable();
-    this.turnLeftButton = manual.add(this.robot, "manualTurnLeft").name("turn left").disable();
-    this.turnRightButton = manual.add(this.robot, "manualTurnRight").name("turn right").disable();
-    this.moveUntilButton = manual.add(this.robot, "manualMoveUntil").name("move until").disable();
+    const action = manual.addFolder("Action");
+    this.shootButton = action.add(this.robot, "shoot").disable();
+    action.open();
+    const look = manual.addFolder("Look");
+    this.lookCenterButton = look.add(this.robot, "lookCenter").name("look center").disable();
+    this.lookLeftButton = look.add(this.robot, "lookLeft").name("look left").disable();
+    this.lookRightButton = look.add(this.robot, "lookRight").name("look right").disable();
+    look.open();
+    const turn = manual.addFolder("Turn");
+    this.turnLeftButton = turn.add(this.robot, "manualTurnLeft").name("turn left").disable();
+    this.turnRightButton = turn.add(this.robot, "manualTurnRight").name("turn right").disable();
+    this.turnAroundButton = turn.add(this.robot, "manualTurnAround").name("turn around").disable();
+    this.turnFullButton = turn.add(this.robot, "manualTurnFull").name("turn full").disable();
+    turn.open();
+    const move = manual.addFolder("Move");
+    this.moveUntilButton = move.add(this.robot, "manualMoveUntil").name("move until").disable();
+    move.open();
     manual.open();
     const auto = control.addFolder("Auto");
     this.startButton = auto.add(this.robot, "start").disable();
@@ -56,12 +66,12 @@ export default class GUI extends LilGUI {
       .listen()
       .disable();
     settings.open();
-    const move = settings.addFolder("Move");
-    this.maxPower = move.add(this.robot, "maxPower", 0, 100).name("max power").disable();
-    this.friction = move.add(this.robot, "friction", 0, 2).disable();
-    this.acceleration = move.add(this.robot, "acceleration", 0, 2000).disable();
-    this.deceleration = move.add(this.robot, "deceleration", 0, 2000).disable();
-    move.open();
+    const movement = settings.addFolder("Movement");
+    this.maxPower = movement.add(this.robot, "maxPower", 0, 100).name("max power").disable();
+    this.friction = movement.add(this.robot, "friction", 0, 2).disable();
+    this.acceleration = movement.add(this.robot, "acceleration", 0, 2000).disable();
+    this.deceleration = movement.add(this.robot, "deceleration", 0, 2000).disable();
+    movement.open();
     control.open();
     const sensors = this.addFolder("Sensors");
     sensors.addColor(this.robot, "hexColor").name("color").disable();
