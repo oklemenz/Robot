@@ -36,7 +36,7 @@ export default class APIMoveHub {
       this.robot._connected();
     });
 
-    this.hub.emitter.on('disconnect', () => {
+    this.hub.emitter.on("disconnect", () => {
       this.robot._disconnected();
       this.hub = null;
     });
@@ -58,7 +58,7 @@ export default class APIMoveHub {
     this.hub.emitter.on("tilt", (tilt) => {
       this.robot._setTilt({
         x: -tilt.roll,
-        y: tilt.pitch,
+        y: tilt.pitch
       });
     });
 
@@ -93,17 +93,13 @@ export default class APIMoveHub {
     this.maxPower = maxPower;
   }
 
-  setAcceleration(time = 0) {
-  }
+  setAcceleration(time = 0) {}
 
-  setDeceleration(time = 0) {
-  }
+  setDeceleration(time = 0) {}
 
-  setSensorMode(mode) {
-  }
+  setSensorMode(mode) {}
 
-  async setSensorColor(color) {
-  }
+  async setSensorColor(color) {}
 
   async setLEDColor(color) {
     if (!this.connected) {
