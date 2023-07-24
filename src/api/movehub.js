@@ -135,6 +135,7 @@ export default class APIMoveHub {
       return false;
     }
     // TODO: Set Speed + Max Power (=> turnSpeed)
+    // TODO: Use motorAngleMultiAsync instead
     await this.hub.turn(degrees);
     return true;
   }

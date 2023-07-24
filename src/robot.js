@@ -400,13 +400,13 @@ export default class Robot extends EventEmitter {
     await this.manualTurn(360, speed);
   }
 
-  async manualTurn(speed = Constants.BODY_TURN_SPEED, degrees) {
+  async manualTurn(degrees, speed = Constants.BODY_TURN_SPEED) {
     if (!this.connected) {
       return;
     }
     this.status = Status.MANUAL;
     // TODO: Accelerate: >0
-    await this.api.turn(speed, degrees);
+    await this.api.turn(degrees, speed);
   }
 
   async manualMoveUntil() {

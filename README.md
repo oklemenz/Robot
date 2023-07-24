@@ -37,5 +37,11 @@
 
 ## node-poweredup
 
-- Github: https://github.com/nathankellenicki/node-poweredup
+- GitHub: https://github.com/nathankellenicki/node-poweredup
 - Documentation: https://nathan.kellenicki.com/node-poweredup/
+
+## movehub
+
+- GitHub:
+  - https://github.com/hobbyquaker/node-movehub
+  - https://github.com/ttu/node-movehub-async
