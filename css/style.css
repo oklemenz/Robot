@@ -5,20 +5,6 @@ body {
     margin: 0;
     padding: 0;
     background-color: white;
-    overflow: hidden;
-}
-
-body,
-body * {
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
-}
-
-@supports (-webkit-touch-callout: none) {
-    body {
-        margin-top: 0.5px;
-    }
 }
 
 @media (orientation: landscape) {
@@ -27,6 +13,13 @@ body * {
         width: 100vw;
         height: 100vh;
     }
+}
+
+body,
+body * {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 canvas {
