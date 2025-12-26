@@ -6,7 +6,7 @@
   "scripts": {
     "start": "http-server",
     "lint": "npm run prettier && eslint . --fix",
-    "prettier": "prettier \"**/*.{js,json,md,html}\" --write --loglevel error"
+    "prettier": "prettier \"**/*.{js,json,md,html}\" --write --log-level error"
   },
   "repository": {
     "type": "git",
